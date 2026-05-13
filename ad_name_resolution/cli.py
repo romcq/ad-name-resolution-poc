@@ -10,7 +10,6 @@ from typing import Any
 from .repository import ADSnapshotRepository
 from .resolver import resolve_event
 from .test_runner import (
-    find_test_by_id,
     list_tests,
     load_tests,
     print_summary,
@@ -23,7 +22,16 @@ from .test_runner import (
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DB = PROJECT_ROOT / "ad_snapshot.json"
 DEFAULT_TESTS = PROJECT_ROOT / "tests.json"
-SUPPORTED_KRB_NAME_TYPES = {1, 2, 3, 10}
+AS_REQ_NAME_TYPES = {
+    1: "KRB5-NT-PRINCIPAL",
+    10: "KRB5-NT-ENTERPRISE-PRINCIPAL",
+}
+TGS_REQ_NAME_TYPES = {
+    1: "KRB5-NT-PRINCIPAL",
+    2: "KRB5-NT-SRV-INST",
+    3: "KRB5-NT-SRV-HST",
+    10: "KRB5-NT-ENTERPRISE-PRINCIPAL",
+}
 
 
 def load_config(path: Path = DEFAULT_DB) -> tuple[ADSnapshotRepository, dict[str, list[str]]]:
@@ -44,7 +52,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list-tests", action="store_true", help="List tests from tests.json")
     parser.add_argument("--run-all", action="store_true", help="Run all tests")
     parser.add_argument("--run-category", help="Run tests from one category")
-    parser.add_argument("--run-test", help="Run one test by id")
     args = parser.parse_args(argv)
 
     repository, spn_mappings = load_config(Path(args.db))
@@ -56,15 +63,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.list_tests:
         list_tests(tests)
         return 0
-    if args.run_test:
-        # Для CI/скриптов важно различать "тест упал" и "тест не найден".
-        test = find_test_by_id(tests, args.run_test)
-        if test is None:
-            print(f"Тест не найден: {args.run_test}")
-            return 2
-        result = run_test(test, repository, spn_mappings)
-        print_test_result(result, verbose=True)
-        return 0 if result["passed"] else 1
     if args.run_category:
         # Пустая категория почти всегда означает опечатку, поэтому возвращаем
         # ошибку вместо "0 passed, 0 failed".
@@ -112,10 +110,9 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
         print("\nТестовый режим:")
         print("1. Показать список тестов")
         print("2. Выбрать тест из списка")
-        print("3. Запустить тест по id")
-        print("4. Запустить все тесты")
-        print("5. Запустить раздел тестов")
-        print("6. Назад")
+        print("3. Запустить все тесты")
+        print("4. Запустить раздел тестов")
+        print("5. Назад")
         choice = input("> ").strip()
         if choice == "1":
             list_tests(tests)
@@ -125,20 +122,13 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
             if not index_raw.isdigit() or not (1 <= int(index_raw) <= len(tests)):
                 print("Некорректный номер.")
                 continue
-            print_test_result(run_test(tests[int(index_raw) - 1], repository, spn_mappings))
+            print_test_result(run_test(tests[int(index_raw) - 1], repository, spn_mappings), verbose=True)
         elif choice == "3":
-            test_id = input("Введите id теста: ").strip()
-            test = find_test_by_id(tests, test_id)
-            if test is None:
-                print("Тест не найден.")
-                continue
-            print_test_result(run_test(test, repository, spn_mappings))
-        elif choice == "4":
             results = run_all_tests(tests, repository, spn_mappings)
             for result in results:
                 print_test_result(result, verbose=False)
             print_summary(results)
-        elif choice == "5":
+        elif choice == "4":
             categories = sorted({test.category for test in tests})
             print("Доступные разделы:", ", ".join(categories))
             category = input("Введите раздел: ").strip()
@@ -149,7 +139,7 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
             for result in results:
                 print_test_result(result, verbose=False)
             print_summary(results)
-        elif choice == "6":
+        elif choice == "5":
             return
         else:
             print("Неизвестный пункт меню.")
@@ -174,6 +164,7 @@ def run_manual_mode(repository, spn_mappings) -> None:
     result = resolve_event(event, repository, spn_mappings)
     print("\nКраткий итог:")
     print_human_summary(result.to_dict(include_object=False))
+    print_cross_domain_note(event, result)
     print("\nJSON-результат:")
     print(json.dumps(result.to_dict(include_object=False), ensure_ascii=False, indent=2))
     if not result.resolved and result.trace:
@@ -183,11 +174,19 @@ def run_manual_mode(repository, spn_mappings) -> None:
 
 def prompt_ldap_event() -> dict[str, Any]:
     print("\nLDAP Simple Bind: используется поле BindRequest.name.")
-    print("Примеры:")
-    print("  userA@pastukhov.lab")
-    print("  PASTUKHOV\\userA")
-    print("  CN=userA,CN=Users,DC=pastukhov,DC=lab")
-    print("  pastukhov.lab/Users/userA")
+    print("Можно вводить варианты из таблицы статьи:")
+    print("  1. distinguishedName: CN=userA,CN=Users,DC=pastukhov,DC=lab")
+    print("  2. userPrincipalName: userA@pastukhov.lab")
+    print("  3. generated UPN: userImplicit@pastukhov.lab")
+    print("  4. Down-Level Logon Name: PASTUKHOV\\userA")
+    print("  5. canonicalName: pastukhov.lab/Users/userA")
+    print("  6. objectGUID: {5c69b042-e0e9-475a-ae37-1751ef9e05e7}")
+    print("  7. displayName: User A")
+    print("  8. servicePrincipalName: HTTP/userA")
+    print("  9. MapSPN: HOST/userA")
+    print(" 10. objectSid: S-1-5-21-2845156888-2425353457-3474467337-1114")
+    print(" 11. sIDHistory: S-1-5-21-2845156888-2425353457-3474467337-5114")
+    print(" 12. canonicalName с LF: pastukhov.lab/Users\\nuserA")
     name = input("Введите BindRequest.name: ").strip()
     domain_context = input("Доменный контекст (пусто = без контекста; пример pastukhov.lab): ").strip()
     event: dict[str, Any] = {
@@ -195,8 +194,8 @@ def prompt_ldap_event() -> dict[str, Any]:
         "bind_kind": "simple",
         "request": {"operation": "bindRequest", "name": name},
     }
-    # Пустой domain_context сохраняем именно пустым: это позволяет проверить
-    # not_unique случаи между доменами, а не подставлять pastukhov.lab молча.
+    # Пустой domain_context сохраняем именно пустым: ручной ввод должен
+    # передавать resolver только то, что пользователь явно указал.
     if domain_context:
         event["domain_context"] = domain_context
     return event
@@ -216,18 +215,16 @@ def prompt_kerberos_event() -> dict[str, Any]:
         if message_choice == "1":
             message_type = "AS-REQ"
             principal_key = "cname"
+            allowed_name_types = AS_REQ_NAME_TYPES
             break
         if message_choice == "2":
             message_type = "TGS-REQ"
             principal_key = "sname"
+            allowed_name_types = TGS_REQ_NAME_TYPES
             break
         print("Некорректный тип сообщения. Введите 1 или 2.")
 
-    print("\nname_type:")
-    print("1  = KRB5-NT-PRINCIPAL")
-    print("2  = KRB5-NT-SRV-INST")
-    print("3  = KRB5-NT-SRV-HST")
-    print("10 = KRB5-NT-ENTERPRISE-PRINCIPAL")
+    print_kerberos_name_type_hints(message_type, allowed_name_types)
     while True:
         # name_type оставляем числом, как в реальном Kerberos principal.
         raw_name_type = input("Введите name_type: ").strip()
@@ -236,13 +233,12 @@ def prompt_kerberos_event() -> dict[str, Any]:
         except ValueError:
             print("name_type должен быть числом.")
             continue
-        if name_type in SUPPORTED_KRB_NAME_TYPES:
+        if name_type in allowed_name_types:
             break
-        print("Для этого прототипа поддерживаются только name_type: 1, 2, 3, 10.")
+        supported = ", ".join(str(value) for value in allowed_name_types)
+        print(f"Для выбранной ветки поддерживаются name_type: {supported}.")
 
-    print("\nВведите name_string[] через запятую.")
-    print("Пример AS-REQ UPN: userA@pastukhov.lab")
-    print("Пример TGS-REQ service/host: cifs,10-23-RP-DC-01.pastukhov.lab")
+    print_kerberos_name_string_hints(message_type, name_type)
     while True:
         # name_string[] в Kerberos является массивом компонентов, поэтому в CLI
         # вводим компоненты через запятую: service,host.
@@ -251,13 +247,63 @@ def prompt_kerberos_event() -> dict[str, Any]:
             break
         print("name_string[] не должен быть пустым.")
 
-    realm = input("realm [PASTUKHOV.LAB]: ").strip() or "PASTUKHOV.LAB"
+    default_realm = infer_realm_default(message_type, name_type, components)
+    if default_realm:
+        realm_prompt = f"realm [{default_realm}]: "
+    else:
+        realm_prompt = "realm (например PASTUKHOV.LAB; можно оставить пустым): "
+    realm = input(realm_prompt).strip() or default_realm
     return {
         "protocol": "Kerberos",
         "message_type": message_type,
         principal_key: {"name_type": name_type, "name_string": components},
         "realm": realm,
     }
+
+
+def print_kerberos_name_type_hints(message_type: str, allowed_name_types: dict[int, str]) -> None:
+    print("\nДоступные name_type для выбранной ветки:")
+    for number, name in allowed_name_types.items():
+        print(f"{number:<2} = {name}")
+    if message_type == "AS-REQ":
+        print("AS-REQ / cname обычно проверяет пользователя: UPN-like строку или account name.")
+    else:
+        print("TGS-REQ / sname обычно проверяет сервисный principal: service,host или одноэлементное account name.")
+
+
+def print_kerberos_name_string_hints(message_type: str, name_type: int) -> None:
+    print("\nВведите name_string[] через запятую, как массив компонентов Kerberos principal.")
+    if message_type == "AS-REQ" and name_type == 10:
+        print("NT-ENTERPRISE / client: userA@pastukhov.lab")
+    elif message_type == "AS-REQ" and name_type == 1:
+        print("NT-PRINCIPAL / client: userA")
+    elif message_type == "TGS-REQ" and name_type in {2, 3}:
+        print("NT-SRV-INST/HST / server: cifs,10-23-RP-DC-01.pastukhov.lab")
+        print("Одноэлементный fallback: 10-23-RP-DC-01")
+    elif message_type == "TGS-REQ" and name_type == 1:
+        print("NT-PRINCIPAL / server: cifs,10-23-RP-DC-01.pastukhov.lab")
+        print("Одноэлементный fallback: 10-23-RP-DC-01")
+    elif message_type == "TGS-REQ" and name_type == 10:
+        print("NT-ENTERPRISE / server: HTTP/userA или cifs/10-23-RP-DC-01.pastukhov.lab")
+    print("LDAP DN вида CN=...,DC=... сюда вводить не нужно: это формат для LDAP BindRequest.name.")
+
+
+def infer_realm_default(message_type: str, name_type: int, components: list[str]) -> str:
+    # realm остается отдельным полем события. Эта функция только предлагает удобный default
+    # для ручного CLI; resolver получает realm как обычное входное поле.
+    if not components:
+        return ""
+    first = components[0]
+    if "@" in first and first.count("@") == 1:
+        _, suffix = first.split("@", 1)
+        if suffix:
+            return suffix.upper()
+    if message_type == "TGS-REQ" and len(components) >= 2:
+        host = components[1]
+        parts = host.split(".", 1)
+        if len(parts) == 2 and parts[1]:
+            return parts[1].upper()
+    return ""
 
 
 def print_human_summary(result: dict[str, Any]) -> None:
@@ -269,7 +315,46 @@ def print_human_summary(result: dict[str, Any]) -> None:
         )
         return
     reason = result.get("reason") or "unknown"
+    detected_format = result.get("detected_format")
+    if detected_format:
+        print(f"Формат имени определен: {detected_format}.")
     print(f"Объект не разрешен: {reason}.")
+
+
+def print_cross_domain_note(event: dict[str, Any], result: Any) -> None:
+    if not result.resolved or result.matched_object is None:
+        return
+    context_name, context_value = input_domain_context(event)
+    if not context_value:
+        return
+    obj = result.matched_object
+    if domain_context_matches_object(obj, context_value):
+        return
+    print(
+        "Заметка: "
+        f"{context_name} = {context_value}, "
+        f"а найденный объект находится в домене {obj.domainFQDN} ({obj.domainNetBIOS}). "
+        "В PoC это допустимо: продукт сопоставляет полные идентификаторы по AD snapshot."
+    )
+
+
+def input_domain_context(event: dict[str, Any]) -> tuple[str, str | None]:
+    protocol = (event.get("protocol") or "").casefold()
+    if protocol == "kerberos":
+        return "realm", event.get("realm")
+    if protocol == "ldap":
+        return "domain_context", event.get("domain_context")
+    return "domain_context", None
+
+
+def domain_context_matches_object(obj: Any, context: str | None) -> bool:
+    if not context:
+        return True
+    context_norm = context.strip().casefold()
+    return context_norm in {
+        obj.domainFQDN.strip().casefold(),
+        obj.domainNetBIOS.strip().casefold(),
+    }
 
 
 def print_failure_explanation(result: dict[str, Any], trace: list[dict[str, Any]]) -> None:
@@ -283,6 +368,10 @@ def print_failure_explanation(result: dict[str, Any], trace: list[dict[str, Any]
         print("- Найдено несколько совпадений; stable JSON не раскрывает candidate ids.")
     else:
         print(f"- Resolution завершился без найденного объекта: {reason or 'unknown'}.")
+
+    detected_format = result.get("detected_format")
+    if detected_format:
+        print(f"- Определенный формат имени: {detected_format}.")
 
     upn_step = _trace_step(trace, "userPrincipalName")
     generated_upn_step = _trace_step(trace, "generatedUPN")

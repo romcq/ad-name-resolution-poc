@@ -34,8 +34,10 @@ class ADSnapshotRepository:
         return domain_norm in {norm(obj.domainFQDN), norm(obj.domainNetBIOS)}
 
     def prefer_domain(self, candidates: list[ADObject], domain: str | None) -> list[ADObject]:
-        # Если строка совпала в нескольких доменах, но у события есть доменный
-        # контекст, сначала пытаемся оставить кандидатов из этого домена.
+        # В этой PoC-модели snapshot принадлежит ITDR-продукту, а не одному DC.
+        # Поэтому полные идентификаторы сначала ищутся по всей базе. Доменный
+        # контекст не является жестким фильтром: он только помогает выбрать
+        # локальный объект, если одинаковое значение найдено в нескольких доменах.
         if not domain or len(candidates) <= 1:
             return candidates
         preferred = [candidate for candidate in candidates if self.domain_matches(candidate, domain)]
@@ -127,6 +129,8 @@ class ADSnapshotRepository:
         return [obj for obj in self.objects if any(norm(sid) == norm(value) for sid in obj.sIDHistory)]
 
     def find_sam_in_domain(self, account: str, domain: str | None) -> list[ADObject]:
+        # Короткие имена вроде sAMAccountName не самодостаточны, поэтому здесь
+        # domain/realm уже используется как реальная область поиска.
         candidates = [obj for obj in self.objects if norm(obj.sAMAccountName) == norm(account)]
         if domain:
             candidates = [candidate for candidate in candidates if self.domain_matches(candidate, domain)]

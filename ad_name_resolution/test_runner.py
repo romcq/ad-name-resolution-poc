@@ -37,7 +37,7 @@ def load_tests(path: str | Path) -> list[TestCase]:
 
 def list_tests(tests: list[TestCase]) -> None:
     for index, test in enumerate(tests, 1):
-        print(f"{index:02d}. [{test.category}] {test.id} - {test.description}")
+        print(f"{index:02d}. [{test.category}] {test.description}")
 
 
 def run_test(
@@ -78,13 +78,20 @@ def run_all_tests(
     return [run_test(test, repository, spn_mappings) for test in selected]
 
 
-def find_test_by_id(tests: list[TestCase], test_id: str) -> TestCase | None:
-    return next((test for test in tests if test.id == test_id), None)
-
-
 def print_test_result(result: dict[str, Any], verbose: bool = True) -> None:
     status = "passed" if result["passed"] else "failed"
     print(f"\n[{status}] {result['id']} - {result['description']}")
+    actual = result["actual"]
+    parsed_format = actual.get("matched_format") or actual.get("detected_format") or "-"
+    parsed_object = actual.get("matched_object_id") or "-"
+    parsed_reason = actual.get("reason") or "-"
+    print(
+        "parsed: "
+        f"branch={actual.get('algorithm_branch') or '-'}, "
+        f"format={parsed_format}, "
+        f"object={parsed_object}, "
+        f"reason={parsed_reason}"
+    )
     if verbose or not result["passed"]:
         print("expected:")
         print(json.dumps(result["expected"], ensure_ascii=False, indent=2))

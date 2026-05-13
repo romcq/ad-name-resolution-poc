@@ -50,6 +50,16 @@ def resolve_kerberos_as_req(event: dict, repository: ADSnapshotRepository) -> Re
     trace: list[dict] = []
     if not components or not isinstance(name_type, int):
         return unsupported_result(protocol="Kerberos", algorithm_branch=CLIENT_BRANCH, input_field="cname", input_value=input_value, reason="invalid_input", trace=trace)
+    if _looks_like_ldap_dn_components(components):
+        return unsupported_result(
+            protocol="Kerberos",
+            algorithm_branch=CLIENT_BRANCH,
+            input_field="cname",
+            input_value=input_value,
+            reason="unsupported_kerberos_name_format",
+            notes=["LDAP distinguishedName is not a Kerberos client principal format in this prototype"],
+            trace=trace,
+        )
     if name_type == NT_ENTERPRISE:
         # KRB5-NT-ENTERPRISE-PRINCIPAL: обычно UPN-like строка.
         return _resolve_as_nt_enterprise(components, realm, repository, trace)
@@ -79,6 +89,16 @@ def resolve_kerberos_tgs_req(event: dict, repository: ADSnapshotRepository) -> R
     trace: list[dict] = []
     if not components or not isinstance(name_type, int):
         return unsupported_result(protocol="Kerberos", algorithm_branch=SERVER_BRANCH, input_field="sname", input_value=input_value, reason="invalid_input", trace=trace)
+    if _looks_like_ldap_dn_components(components):
+        return unsupported_result(
+            protocol="Kerberos",
+            algorithm_branch=SERVER_BRANCH,
+            input_field="sname",
+            input_value=input_value,
+            reason="unsupported_kerberos_name_format",
+            notes=["LDAP distinguishedName is not a Kerberos server principal format in this prototype"],
+            trace=trace,
+        )
     if name_type in {NT_PRINCIPAL, NT_SRV_INST, NT_SRV_HST}:
         # Эти типы идут по общей service-like ветке Server Principal Lookup.
         return _resolve_tgs_service_like(name_type, components, realm, repository, trace)
@@ -128,8 +148,19 @@ def _resolve_as_nt_enterprise(
                 if result is not None:
                     return result
     # Если прямые проверки не нашли объект, по статье дальше возможен CrackNames.
-    # В PoC он не реализован, поэтому явно отмечается в результате.
-    return not_found_result(protocol="Kerberos", algorithm_branch=CLIENT_BRANCH, input_field="cname", input_value=input_value, unimplemented_steps=["CrackNames"], trace=trace)
+    # В рамках ITDR snapshot-модели отдельный CrackNames не реализуется:
+    # полные идентификаторы уже ищутся по доступному AD snapshot, а короткие
+    # имена остаются привязанными к realm/domain context.
+    detected_format = "NT-ENTERPRISE/userPrincipalName" if split_upn(value) else "NT-ENTERPRISE"
+    return not_found_result(
+        protocol="Kerberos",
+        algorithm_branch=CLIENT_BRANCH,
+        input_field="cname",
+        input_value=input_value,
+        detected_format=detected_format,
+        unimplemented_steps=["CrackNames"],
+        trace=trace,
+    )
 
 
 def _resolve_as_nt_principal(
@@ -162,7 +193,15 @@ def _resolve_as_nt_principal(
         result = _match_upn_variant("Kerberos", CLIENT_BRANCH, "cname", input_value, "NT-PRINCIPAL", f"{value}@{domain_fqdn}", repository, realm, trace)
         if result is not None:
             return result
-    return not_found_result(protocol="Kerberos", algorithm_branch=CLIENT_BRANCH, input_field="cname", input_value=input_value, unimplemented_steps=["CrackNames"], trace=trace)
+    return not_found_result(
+        protocol="Kerberos",
+        algorithm_branch=CLIENT_BRANCH,
+        input_field="cname",
+        input_value=input_value,
+        detected_format="NT-PRINCIPAL/sAMAccountName",
+        unimplemented_steps=["CrackNames"],
+        trace=trace,
+    )
 
 
 def _resolve_tgs_service_like(
@@ -195,7 +234,15 @@ def _resolve_tgs_service_like(
             result = _match_sam("Kerberos", SERVER_BRANCH, "sname", input_value, fmt, account, realm, repository, trace)
             if result is not None:
                 return result
-    return not_found_result(protocol="Kerberos", algorithm_branch=SERVER_BRANCH, input_field="sname", input_value=input_value, trace=trace)
+    detected_format = f"{type_name}/sAMAccountName" if len(components) == 1 else f"{type_name}/userPrincipalName"
+    return not_found_result(
+        protocol="Kerberos",
+        algorithm_branch=SERVER_BRANCH,
+        input_field="sname",
+        input_value=input_value,
+        detected_format=detected_format,
+        trace=trace,
+    )
 
 
 def _resolve_tgs_nt_enterprise(
@@ -225,7 +272,15 @@ def _resolve_tgs_nt_enterprise(
         result = _resolve_matches("Kerberos", SERVER_BRANCH, "sname", input_value, fmt, "sAMAccountName", account, spn_ready, trace)
         if result is not None:
             return result
-    return not_found_result(protocol="Kerberos", algorithm_branch=SERVER_BRANCH, input_field="sname", input_value=input_value, trace=trace)
+    detected_format = "NT-ENTERPRISE/servicePrincipalName" if "/" in value else "NT-ENTERPRISE/sAMAccountName"
+    return not_found_result(
+        protocol="Kerberos",
+        algorithm_branch=SERVER_BRANCH,
+        input_field="sname",
+        input_value=input_value,
+        detected_format=detected_format,
+        trace=trace,
+    )
 
 
 def _match_upn_variant(
@@ -328,3 +383,10 @@ def _resolve_matches(
 
 def _principal_to_string(components: list[str]) -> str:
     return "/".join(str(component) for component in components)
+
+
+def _looks_like_ldap_dn_components(components: list[str]) -> bool:
+    if len(components) < 2:
+        return False
+    dn_prefixes = ("cn=", "ou=", "dc=", "o=", "uid=")
+    return all(str(component).strip().casefold().startswith(dn_prefixes) for component in components)

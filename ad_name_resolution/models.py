@@ -61,13 +61,13 @@ class ADObject:
 @dataclass
 class ResolutionResult:
     # Stable result, который видит пользователь/тесты. Внутренние детали
-    # вроде списка кандидатов не публикуются, чтобы не возвращать старый
-    # ambiguous/candidate_object_ids слой.
+    # вроде списка кандидатов не публикуются: stable JSON остается коротким.
     resolved: bool
     protocol: str | None = None
     algorithm_branch: str | None = None
     input_field: str | None = None
     input_value: str | None = None
+    detected_format: str | None = None
     matched_format: str | None = None
     matched_field: str | None = None
     matched_value: str | None = None
@@ -87,6 +87,7 @@ class ResolutionResult:
             "algorithm_branch": self.algorithm_branch,
             "input_field": self.input_field,
             "input_value": self.input_value,
+            "detected_format": self.detected_format,
             "matched_format": self.matched_format,
             "matched_field": self.matched_field,
             "matched_value": self.matched_value,
@@ -141,6 +142,7 @@ def not_found_result(
     algorithm_branch: str,
     input_field: str,
     input_value: str,
+    detected_format: str | None = None,
     unimplemented_steps: list[str] | None = None,
     notes: list[str] | None = None,
     trace: list[dict[str, Any]] | None = None,
@@ -152,6 +154,7 @@ def not_found_result(
         algorithm_branch=algorithm_branch,
         input_field=input_field,
         input_value=input_value,
+        detected_format=detected_format,
         reason="object_not_found",
         unimplemented_steps=unimplemented_steps or [],
         notes=notes or [],

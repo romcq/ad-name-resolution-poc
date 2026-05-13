@@ -77,6 +77,7 @@ def resolve_ldap_simple_bind(
         algorithm_branch=LDAP_BRANCH,
         input_field=LDAP_INPUT_FIELD,
         input_value=name,
+        detected_format=_first_detected_ldap_format(trace),
         trace=trace,
     )
 
@@ -125,6 +126,15 @@ def _trace(trace: list[dict], **item) -> None:
     # Trace не является стабильным API-результатом. Он нужен, чтобы руками
     # увидеть, какие проверки выполнялись и сколько совпадений дала каждая.
     trace.append(item)
+
+
+def _first_detected_ldap_format(trace: list[dict]) -> str | None:
+    # For a not-found result we still want to tell the operator which input
+    # format was recognized syntactically before the AD lookup returned zero.
+    for item in trace:
+        if item.get("syntax_match") is True:
+            return item.get("step")
+    return None
 
 
 def match_distinguished_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:

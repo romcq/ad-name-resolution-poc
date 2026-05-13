@@ -2,3 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# Local research/source materials and generated scratch files.
+# They are useful on this machine, but should not be uploaded as the PoC.
+*.docx
+*.pdf
+*.zip
+tmp_*/
+tmp_*.py
+tmp_*.txt
+ad_name_resolution_v2/
+itdr-develop-unpacked/
+Алгоритм/
