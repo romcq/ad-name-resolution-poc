@@ -8,6 +8,8 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ADObject:
+    # Минимальная модель AD-объекта для PoC. Здесь специально собраны только
+    # идентификаторы и поля имен, которые участвуют в LDAP/Kerberos lookup.
     id: str
     object_type: str
     sAMAccountName: str
@@ -58,6 +60,9 @@ class ADObject:
 
 @dataclass
 class ResolutionResult:
+    # Stable result, который видит пользователь/тесты. Внутренние детали
+    # вроде списка кандидатов не публикуются, чтобы не возвращать старый
+    # ambiguous/candidate_object_ids слой.
     resolved: bool
     protocol: str | None = None
     algorithm_branch: str | None = None
@@ -74,6 +79,8 @@ class ResolutionResult:
     trace: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self, include_object: bool = False, include_trace: bool = False) -> dict[str, Any]:
+        # По умолчанию наружу уходит компактный stable JSON.
+        # matched_object и trace включаются только явно.
         result: dict[str, Any] = {"resolved": self.resolved}
         optional_values = {
             "protocol": self.protocol,
@@ -111,6 +118,7 @@ def found_result(
     notes: list[str] | None = None,
     trace: list[dict[str, Any]] | None = None,
 ) -> ResolutionResult:
+    # Успешный lookup: ровно один объект совпал на конкретном шаге алгоритма.
     return ResolutionResult(
         resolved=True,
         protocol=protocol,
@@ -137,6 +145,7 @@ def not_found_result(
     notes: list[str] | None = None,
     trace: list[dict[str, Any]] | None = None,
 ) -> ResolutionResult:
+    # Все применимые проверки прошли, но объект не найден.
     return ResolutionResult(
         resolved=False,
         protocol=protocol,
@@ -162,6 +171,8 @@ def not_unique_result(
     candidates: list[ADObject],
     trace: list[dict[str, Any]] | None = None,
 ) -> ResolutionResult:
+    # Несколько объектов совпали на одном шаге. Candidate ids остаются только
+    # во внутренней диагностике/trace, stable JSON получает reason=not_unique.
     return ResolutionResult(
         resolved=False,
         protocol=protocol,
@@ -191,6 +202,7 @@ def unsupported_result(
     notes: list[str] | None = None,
     trace: list[dict[str, Any]] | None = None,
 ) -> ResolutionResult:
+    # Формат/ветка известны прототипу, но пока не реализованы или невалидны.
     return ResolutionResult(
         resolved=False,
         protocol=protocol,

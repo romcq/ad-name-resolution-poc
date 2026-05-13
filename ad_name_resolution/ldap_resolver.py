@@ -1,4 +1,9 @@
-"""LDAP Simple Bind resolver."""
+"""LDAP Simple Bind resolver.
+
+Здесь реализован порядок LDAP-проверок из статьи. Важный момент: это именно
+последовательный алгоритм. Если строка похожа сразу на несколько форматов,
+побеждает первый формат из списка, который дал ровно одно совпадение.
+"""
 
 from __future__ import annotations
 
@@ -42,6 +47,12 @@ def resolve_ldap_simple_bind(
     name = input_value.strip()
     domain_context = event.get("domain_context")
     trace: list[dict] = []
+
+    # Порядок ниже повторяет LDAP Simple Authentication order.
+    # Каждый шаг сам решает:
+    # 1. подходит ли строка синтаксически под формат;
+    # 2. сколько объектов найдено в snapshot;
+    # 3. можно ли вернуть результат или нужно идти дальше.
     ordered_steps: list[Callable[[], ResolutionResult | None]] = [
         lambda: match_distinguished_name(name, repository, trace),
         lambda: match_upn_or_generated_upn(name, repository, domain_context, trace),
@@ -58,6 +69,8 @@ def resolve_ldap_simple_bind(
     for step in ordered_steps:
         result = step()
         if result is not None:
+            # Если шаг вернул found/not_unique, дальше форматы уже не проверяем.
+            # Это и есть "победа более раннего формата".
             return result
     return not_found_result(
         protocol="LDAP",
@@ -77,6 +90,10 @@ def _resolve_matches(
     matches,
     trace: list[dict],
 ) -> ResolutionResult | None:
+    # Единое правило для всех LDAP-шагов:
+    # 0 совпадений -> формат не сработал, проверяем следующий;
+    # 1 совпадение -> объект найден;
+    # несколько совпадений -> stable result reason=not_unique.
     if not matches:
         return None
     if len(matches) == 1:
@@ -105,10 +122,14 @@ def _resolve_matches(
 
 
 def _trace(trace: list[dict], **item) -> None:
+    # Trace не является стабильным API-результатом. Он нужен, чтобы руками
+    # увидеть, какие проверки выполнялись и сколько совпадений дала каждая.
     trace.append(item)
 
 
 def match_distinguished_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 1: distinguishedName. Проверяется первым, поэтому DN выигрывает
+    # даже если такая же строка где-то записана как displayName.
     if not looks_like_dn(name):
         _trace(trace, step="distinguishedName", syntax_match=False)
         return None
@@ -123,6 +144,9 @@ def match_upn_or_generated_upn(
     domain_context: str | None,
     trace: list[dict],
 ) -> ResolutionResult | None:
+    # LDAP step 2: UPN-like строка. Сначала ищем явный userPrincipalName.
+    # Если его нет, пробуем generated UPN: sAMAccountName@domainFQDN, но только
+    # для объектов без явно заданного userPrincipalName.
     parts = split_upn(name)
     if parts is None:
         _trace(trace, step="userPrincipalName/generatedUPN", syntax_match=False)
@@ -139,6 +163,8 @@ def match_upn_or_generated_upn(
 
 
 def match_down_level_logon_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 3: DOMAIN\account. DOMAIN сравнивается с domainNetBIOS,
+    # account сравнивается с sAMAccountName.
     parts = split_downlevel(name)
     if parts is None:
         _trace(trace, step="downLevelLogonName", syntax_match=False)
@@ -150,6 +176,7 @@ def match_down_level_logon_name(name: str, repository: ADSnapshotRepository, tra
 
 
 def match_canonical_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 4: canonicalName вида domain.tld/OU/name.
     if not looks_like_canonical(name):
         _trace(trace, step="canonicalName", syntax_match=False)
         return None
@@ -159,6 +186,7 @@ def match_canonical_name(name: str, repository: ADSnapshotRepository, trace: lis
 
 
 def match_object_guid(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 5: objectGUID. Скобки вокруг GUID допускаются.
     if not is_guid(name):
         _trace(trace, step="objectGUID", syntax_match=False)
         return None
@@ -173,6 +201,8 @@ def match_display_name(
     domain_context: str | None,
     trace: list[dict],
 ) -> ResolutionResult | None:
+    # LDAP step 6: displayName проверяется поздно. Поэтому UPN/DN/canonicalName
+    # выигрывают у displayName, но displayName все еще выигрывает у SPN/SID.
     matches = repository.find_display_name(name, domain_context)
     _trace(trace, step="displayName", syntax_match=True, lookup_field="displayName", lookup_value=name, matched_count=len(matches))
     return _resolve_matches(input_value=name, matched_format="displayName", matched_field="displayName", matched_value=name, matches=matches, trace=trace)
@@ -184,6 +214,7 @@ def match_service_principal_name(
     domain_context: str | None,
     trace: list[dict],
 ) -> ResolutionResult | None:
+    # LDAP step 7: прямой поиск по servicePrincipalName.
     if not looks_like_spn(name):
         _trace(trace, step="servicePrincipalName", syntax_match=False)
         return None
@@ -199,6 +230,8 @@ def match_map_spn(
     domain_context: str | None,
     trace: list[dict],
 ) -> ResolutionResult | None:
+    # LDAP step 8: упрощенный MapSPN. В реальном AD это богаче, здесь же
+    # используется локальный словарь spn_mappings из ad_snapshot.json.
     if not looks_like_spn(name):
         _trace(trace, step="MapSPN", syntax_match=False)
         return None
@@ -211,6 +244,7 @@ def match_map_spn(
 
 
 def match_object_sid(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 9: текущий objectSid объекта.
     if not is_sid(name):
         _trace(trace, step="objectSid", syntax_match=False)
         return None
@@ -220,6 +254,7 @@ def match_object_sid(name: str, repository: ADSnapshotRepository, trace: list[di
 
 
 def match_sid_history(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 10: исторические SID из sIDHistory.
     if not is_sid(name):
         _trace(trace, step="sIDHistory", syntax_match=False)
         return None
@@ -229,6 +264,7 @@ def match_sid_history(name: str, repository: ADSnapshotRepository, trace: list[d
 
 
 def match_canonical_name_lf(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
+    # LDAP step 11: вариант canonicalName, где последний "/" представлен как LF.
     if not looks_like_canonical_lf(name):
         _trace(trace, step="canonicalNameWithLF", syntax_match=False)
         return None

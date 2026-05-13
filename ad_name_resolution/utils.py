@@ -14,6 +14,7 @@ DN_RDN_RE = re.compile(r"(?i)^(CN|OU|DC|O|STREET|L|ST|C|UID)=")
 
 
 def norm(value: str | None) -> str:
+    # Все сравнения в PoC case-insensitive и без внешних пробелов.
     return (value or "").strip().casefold()
 
 
@@ -22,6 +23,7 @@ def norm_guid(value: str | None) -> str:
 
 
 def split_upn(value: str) -> tuple[str, str] | None:
+    # UPN-like строка должна иметь ровно один "@": account@suffix.
     if value.count("@") != 1:
         return None
     account, suffix = value.split("@", 1)
@@ -31,6 +33,7 @@ def split_upn(value: str) -> tuple[str, str] | None:
 
 
 def split_downlevel(value: str) -> tuple[str, str] | None:
+    # Down-level logon name: DOMAIN\account.
     if value.count("\\") != 1:
         return None
     domain, account = value.split("\\", 1)
@@ -48,6 +51,8 @@ def is_sid(value: str) -> bool:
 
 
 def split_ldap_dn(value: str) -> list[str]:
+    # DN нельзя делить обычным value.split(","): запятая может быть escaped
+    # внутри RDN, например CN=user\,A,CN=Users,...
     parts: list[str] = []
     current: list[str] = []
     escaped = False
@@ -84,6 +89,7 @@ def looks_like_dn(value: str) -> bool:
 
 
 def looks_like_canonical(value: str) -> bool:
+    # Грубая эвристика для canonicalName: DNS-домен слева и "/" как разделитель.
     if "/" not in value or "\n" in value:
         return False
     first_segment = value.split("/", 1)[0]
@@ -98,6 +104,8 @@ def looks_like_canonical_lf(value: str) -> bool:
 
 
 def canonical_with_lf(canonical_name: str) -> str:
+    # Последний LDAP-шаг проверяет вариант canonicalName, где последний "/"
+    # заменен на перевод строки.
     left, separator, right = canonical_name.rpartition("/")
     if not separator:
         return canonical_name
@@ -105,6 +113,7 @@ def canonical_with_lf(canonical_name: str) -> str:
 
 
 def looks_like_spn(value: str) -> bool:
+    # SPN тоже содержит "/", поэтому сначала отсекаем canonicalName.
     if "/" not in value or "\n" in value:
         return False
     if looks_like_canonical(value):

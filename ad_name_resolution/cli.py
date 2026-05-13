@@ -27,6 +27,8 @@ SUPPORTED_KRB_NAME_TYPES = {1, 2, 3, 10}
 
 
 def load_config(path: Path = DEFAULT_DB) -> tuple[ADSnapshotRepository, dict[str, list[str]]]:
+    # Загружаем одну JSON-базу: из нее строится repository для поиска объектов,
+    # а spn_mappings отдельно передаются в LDAP MapSPN step.
     with path.open("r", encoding="utf-8") as file:
         raw = json.load(file)
     repository = ADSnapshotRepository.load(path)
@@ -48,10 +50,14 @@ def main(argv: list[str] | None = None) -> int:
     repository, spn_mappings = load_config(Path(args.db))
     tests = load_tests(args.tests)
 
+    # CLI поддерживает два способа проверки:
+    # 1. автоматические тесты из tests.json;
+    # 2. ручной ввод события, похожего на уже разобранный трафик.
     if args.list_tests:
         list_tests(tests)
         return 0
     if args.run_test:
+        # Для CI/скриптов важно различать "тест упал" и "тест не найден".
         test = find_test_by_id(tests, args.run_test)
         if test is None:
             print(f"Тест не найден: {args.run_test}")
@@ -60,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
         print_test_result(result, verbose=True)
         return 0 if result["passed"] else 1
     if args.run_category:
+        # Пустая категория почти всегда означает опечатку, поэтому возвращаем
+        # ошибку вместо "0 passed, 0 failed".
         if not any(test.category == args.run_category for test in tests):
             print(f"Тесты для категории не найдены: {args.run_category}")
             return 2
@@ -148,6 +156,9 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
 
 
 def run_manual_mode(repository, spn_mappings) -> None:
+    # Ручной режим не имитирует старый "login string -> traffic" слой.
+    # Пользователь вводит то, что parser трафика уже должен был бы достать:
+    # LDAP BindRequest.name или Kerberos principal fields.
     print("\nВыберите протокол:")
     print("1. LDAP")
     print("2. Kerberos")
@@ -184,6 +195,8 @@ def prompt_ldap_event() -> dict[str, Any]:
         "bind_kind": "simple",
         "request": {"operation": "bindRequest", "name": name},
     }
+    # Пустой domain_context сохраняем именно пустым: это позволяет проверить
+    # not_unique случаи между доменами, а не подставлять pastukhov.lab молча.
     if domain_context:
         event["domain_context"] = domain_context
     return event
@@ -194,6 +207,8 @@ def prompt_kerberos_event() -> dict[str, Any]:
     print("AS-REQ использует cname / Client Principal Lookup.")
     print("TGS-REQ использует sname / Server Principal Lookup.")
     while True:
+        # message_type определяет, какое поле principal будет использовано:
+        # cname для AS-REQ или sname для TGS-REQ.
         print("\nТип сообщения:")
         print("1. AS-REQ")
         print("2. TGS-REQ")
@@ -214,6 +229,7 @@ def prompt_kerberos_event() -> dict[str, Any]:
     print("3  = KRB5-NT-SRV-HST")
     print("10 = KRB5-NT-ENTERPRISE-PRINCIPAL")
     while True:
+        # name_type оставляем числом, как в реальном Kerberos principal.
         raw_name_type = input("Введите name_type: ").strip()
         try:
             name_type = int(raw_name_type)
@@ -228,6 +244,8 @@ def prompt_kerberos_event() -> dict[str, Any]:
     print("Пример AS-REQ UPN: userA@pastukhov.lab")
     print("Пример TGS-REQ service/host: cifs,10-23-RP-DC-01.pastukhov.lab")
     while True:
+        # name_string[] в Kerberos является массивом компонентов, поэтому в CLI
+        # вводим компоненты через запятую: service,host.
         components = [part.strip() for part in input("name_string[]: ").split(",") if part.strip()]
         if components:
             break
@@ -255,6 +273,8 @@ def print_human_summary(result: dict[str, Any]) -> None:
 
 
 def print_failure_explanation(result: dict[str, Any], trace: list[dict[str, Any]]) -> None:
+    # Это не часть алгоритма. Это UX-слой поверх trace, чтобы руками было проще
+    # понять, почему строка не разрешилась.
     print("\nПояснение:")
     reason = result.get("reason")
     if reason == "object_not_found":

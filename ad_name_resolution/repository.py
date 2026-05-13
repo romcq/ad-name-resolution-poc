@@ -1,4 +1,9 @@
-"""Repository-style lookup helpers over the local JSON AD snapshot."""
+"""Repository-style lookup helpers over the local JSON AD snapshot.
+
+Resolver-файлы не должны знать, как именно устроен JSON. Они спрашивают
+repository: "найди по UPN", "найди по SID", "найди по SPN". Так алгоритм
+остается читаемым, а вся работа с локальной базой собрана здесь.
+"""
 
 from __future__ import annotations
 
@@ -21,12 +26,16 @@ class ADSnapshotRepository:
         return cls(ADObject.from_dict(item) for item in raw["objects"])
 
     def domain_matches(self, obj: ADObject, domain: str | None) -> bool:
+        # domain_context/realm может прийти как DNS-имя pastukhov.lab
+        # или как NetBIOS PASTUKHOV. Для PoC считаем оба варианта эквивалентными.
         if not domain:
             return True
         domain_norm = norm(domain)
         return domain_norm in {norm(obj.domainFQDN), norm(obj.domainNetBIOS)}
 
     def prefer_domain(self, candidates: list[ADObject], domain: str | None) -> list[ADObject]:
+        # Если строка совпала в нескольких доменах, но у события есть доменный
+        # контекст, сначала пытаемся оставить кандидатов из этого домена.
         if not domain or len(candidates) <= 1:
             return candidates
         preferred = [candidate for candidate in candidates if self.domain_matches(candidate, domain)]
@@ -36,6 +45,8 @@ class ADSnapshotRepository:
         return [obj for obj in self.objects if norm(obj.distinguishedName) == norm(value)]
 
     def find_user_principal_name(self, value: str, domain_context: str | None = None) -> list[ADObject]:
+        # Explicit UPN ищется как целая строка. Suffix после @ не обязан
+        # совпадать с domainFQDN объекта.
         candidates = [
             obj
             for obj in self.objects
@@ -49,6 +60,8 @@ class ADSnapshotRepository:
         suffix: str,
         domain_context: str | None = None,
     ) -> list[ADObject]:
+        # Generated UPN: sAMAccountName@domainFQDN.
+        # В этом PoC он применим только если explicit userPrincipalName пустой.
         candidates = [
             obj
             for obj in self.objects
@@ -95,6 +108,8 @@ class ADSnapshotRepository:
         spn_mappings: dict[str, list[str]],
         domain_context: str | None = None,
     ) -> tuple[list[ADObject], str | None]:
+        # Упрощенный MapSPN: берем service class слева от "/" и пробуем
+        # заменить его на классы из локального словаря spn_mappings.
         service, _, instance = value.partition("/")
         if not service or not instance:
             return [], None
@@ -118,6 +133,8 @@ class ADSnapshotRepository:
         return candidates
 
     def domain_fqdn_for_context(self, domain: str | None) -> str | None:
+        # Kerberos realm часто приходит как PASTUKHOV.LAB. Для дальнейших
+        # проверок нужен DNS-домен в формате pastukhov.lab.
         if not domain:
             return None
         for obj in self.objects:

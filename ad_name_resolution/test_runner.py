@@ -45,7 +45,11 @@ def run_test(
     repository: ADSnapshotRepository,
     spn_mappings: dict[str, list[str]],
 ) -> dict[str, Any]:
+    # Тесты не содержат отдельной логики resolution. Они просто отправляют
+    # input в тот же resolver, что и ручной режим, и сравнивают selected поля.
     actual_result = resolve_event(test.input, repository, spn_mappings)
+    # В expected обычно проверяются только важные поля. Например, тест может
+    # не проверять input_field, если кейс посвящен matched_format.
     actual = actual_result.to_dict(include_object=False, include_trace=False)
     mismatches = {}
     for key, expected_value in test.expected.items():
@@ -87,6 +91,8 @@ def print_test_result(result: dict[str, Any], verbose: bool = True) -> None:
         print("actual:")
         print(json.dumps(result["actual"], ensure_ascii=False, indent=2))
     if not result["passed"]:
+        # Trace печатаем только на failed-тестах, чтобы видеть, какой шаг
+        # алгоритма разошелся с expectation.
         print("mismatches:")
         print(json.dumps(result["mismatches"], ensure_ascii=False, indent=2))
         if result.get("trace"):
