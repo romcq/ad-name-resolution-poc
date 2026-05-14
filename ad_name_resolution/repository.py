@@ -25,13 +25,6 @@ class ADSnapshotRepository:
             raw = json.load(file)
         return cls(ADObject.from_dict(item) for item in raw["objects"])
 
-    def subset_by_ids(self, object_ids: Iterable[str]) -> "ADSnapshotRepository":
-        # В статье corner-кейсы проверяются как отдельные лабораторные сценарии.
-        # Например, displayName может специально совпадать со SPN, поэтому тесты
-        # запускаются на своем подмножестве объектов, а не всегда на всей базе.
-        id_set = set(object_ids)
-        return ADSnapshotRepository(obj for obj in self.objects if obj.id in id_set)
-
     def domain_matches(self, obj: ADObject, domain: str | None) -> bool:
         # domain_context/realm может прийти как DNS-имя pastukhov.lab
         # или как NetBIOS PASTUKHOV. Для PoC считаем оба варианта эквивалентными.

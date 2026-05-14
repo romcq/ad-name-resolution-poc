@@ -1,30 +1,26 @@
 # AD-like Name Resolution Prototype
 
-Прототип демонстрирует блок AD-like name resolution для ITDR-сценария: на вход приходит уже разобранное LDAP или Kerberos-событие, resolver определяет формат имени, ищет объект в локальном AD snapshot и возвращает результат сопоставления.
+???????? ????????????? ???? AD-like name resolution ??? ITDR-????????: ?? ???? ???????? ??? ??????????? LDAP ??? Kerberos-???????, resolver ?????????? ?????? ?????, ???? ?????? ? ????????? AD snapshot ? ?????????? ????????? ?????????????.
 
-Проект не подключается к реальному AD, не выполняет LDAP Bind/Kerberos-обмен и не парсит pcap. Он проверяет именно алгоритм разбора имени и поиска объекта по данным, которые в реальной системе пришли бы из сетевого парсера.
+?????? ?? ???????????? ? ????????? AD, ?? ????????? LDAP Bind/Kerberos-????? ? ?? ?????? pcap. ?? ????????? ?????? ???????? ??????? ????? ? ?????? ??????? ?? ??????, ??????? ? ???????? ??????? ?????? ?? ?? ???????? ???????.
 
-## Структура
+## ?????????
 
-- `run.py` - точка запуска CLI.
-- `ad_snapshot.json` - локальный AD snapshot: пользователи, сервисные объекты, домены, SPN mappings.
-- `tests.json` - автоматические проверки по таблицам и алгоритмам из статьи.
-- `ad_name_resolution/resolver.py` - верхний роутер LDAP/Kerberos.
-- `ad_name_resolution/ldap_resolver.py` - порядок LDAP Simple Authentication.
-- `ad_name_resolution/kerberos_resolver.py` - Client Principal Lookup и Server Principal Lookup.
-- `ad_name_resolution/repository.py` - поиск объектов по полям snapshot.
-- `ad_name_resolution/cli.py` - ручной режим, меню и печать результата.
-- `ad_name_resolution/test_runner.py` - запуск JSON-тестов.
+- `run.py` - ????? ??????? CLI.
+- `ad_snapshot.json` - ?????? ????????? ???? AD-???????? ??? ?????? ???????? ? ??????.
+- `tests.json` - ?????????????? ???????? ?? ???????? ? ?????????? ?? ??????.
+- `ad_name_resolution/resolver.py` - ??????? ?????? LDAP/Kerberos.
+- `ad_name_resolution/ldap_resolver.py` - ??????? LDAP Simple Authentication.
+- `ad_name_resolution/kerberos_resolver.py` - Client Principal Lookup ? Server Principal Lookup.
+- `ad_name_resolution/repository.py` - ????? ???????? ?? ????? snapshot.
+- `ad_name_resolution/cli.py` - ?????? ?????, ???? ? ?????? ??????????.
+- `ad_name_resolution/test_runner.py` - ?????? JSON-??????.
 
-## LDAP
+## ??? ???????? LDAP
 
-Для LDAP прототип работает с полем:
+??? LDAP ???????? ???????? ? ????? `LDAPMessage -> protocolOp: bindRequest -> bindRequest -> name`.
 
-```text
-LDAPMessage -> protocolOp: bindRequest -> bindRequest -> name
-```
-
-Порядок проверок повторяет LDAP Simple Authentication:
+??????? ????????:
 
 1. `distinguishedName`
 2. `userPrincipalName` / generated UPN
@@ -36,100 +32,163 @@ LDAPMessage -> protocolOp: bindRequest -> bindRequest -> name
 8. `MapSPN`
 9. `objectSid`
 10. `sIDHistory`
-11. `canonicalName` с заменой последнего `/` на `\n`
+11. `canonicalName` ? ??????? ?????????? `/` ?? `\n`
 
-Generated UPN проверяется после явного `userPrincipalName`. То есть сначала ищется точное значение `userPrincipalName`, а если его нет, строка вида `name@domain` может быть сопоставлена как:
+Generated UPN ??????????? ????? ?????? `userPrincipalName`: ??????? ?????? ?????? ???????? `userPrincipalName`, ? ???? ??? ???, ?????? ???? `name@domain` ????? ???? ???????????? ??? `sAMAccountName = name` ? `domainFQDN = domain`.
 
-```text
-sAMAccountName = name
-domainFQDN = domain
-```
+## ??? ???????? Kerberos
 
-Если одно и то же значение совпадает с явным `userPrincipalName` одного объекта и generated UPN другого, побеждает явный `userPrincipalName`.
+??? Kerberos ???????? ????????? ???? ??? ???????????? principal: `message_type`, `cname` ??? `sname`, `name_type`, `name_string[]`, `realm`.
 
-## Kerberos
-
-Для Kerberos прототип принимает поля уже разобранного principal:
-
-- `message_type`: `AS-REQ` или `TGS-REQ`;
-- `cname` для `AS-REQ`;
-- `sname` для `TGS-REQ`;
-- `name_type`;
-- `name_string[]`;
-- `realm`.
-
-Логика выбора ветки:
+?????? ?????? ?????:
 
 ```text
 AS-REQ  -> cname -> Client Principal Lookup
 TGS-REQ -> sname -> Server Principal Lookup
 ```
 
-Внутри выбранной ветки учитывается `name_type`:
+?????????????? ? ????????? `name_type`: `1` (`KRB5-NT-PRINCIPAL`), `2` (`KRB5-NT-SRV-INST`), `3` (`KRB5-NT-SRV-HST`), `10` (`KRB5-NT-ENTERPRISE-PRINCIPAL`).
 
-- `1` - `KRB5-NT-PRINCIPAL`
-- `2` - `KRB5-NT-SRV-INST`
-- `3` - `KRB5-NT-SRV-HST`
-- `10` - `KRB5-NT-ENTERPRISE-PRINCIPAL`
+`realm` ???????? ????????? ??????? ?????, ??? ? Kerberos-???????. CLI ????? ?????????? ???????? ?? ?????????, ?? resolver ???????? `realm` ????.
 
-`realm` остается отдельным входным полем, как в Kerberos-трафике. CLI может предложить значение по умолчанию, если его можно вывести из введенного имени, но resolver получает `realm` явно.
+## ???????????? ? ??????? ? ????
 
-## AD Snapshot
+??? ???????? ?????????? ???? ????? `ad_snapshot.json`. ??? corner-?????? ????????? ????????? ????????????, ????? ???????? ?? ?????? ??????? ????? `userA` ? `userB`.
 
-Snapshot хранится в `ad_snapshot.json`. У объекта есть основные идентификаторы, которые участвуют в проверках:
+| id | ??? | ????? | sAMAccountName | ???????? ???? | ????? ????? |
+|---|---|---|---|---|---|
+| userA | user | pastukhov.lab | userA | UPN: userA@pastukhov.lab; SPN: HTTP/userA; sIDHistory: S-1-5-21-2845156888-2425353457-3474467337-5114; displayName: User A | ??????? ???????????? pastukhov.lab ??? ??????? ???????? LDAP/Kerberos. |
+| userB | user | domain3.lab | userB | UPN: userB@domain3.lab; SPN: HTTP/userB; sIDHistory: S-1-5-21-3677553567-317466416-2570716728-5106; displayName: UserB | ??????? ???????????? domain3.lab ??? ???????? ??????? ??????. |
+| dc01 | computer | pastukhov.lab | 10-23-RP-DC-01$ | SPN: cifs/10-23-RP-DC-01.pastukhov.lab, HOST/10-23-RP-DC-01.pastukhov.lab; displayName: 10-23-RP-DC-01 | ????????????/????????? ?????? ??? SPN ? Kerberos TGS-REQ. |
+| krbtgt | service | pastukhov.lab | krbtgt | - | ????????? ?????? ??? ???????????? ?????? krbtgt ? Server Principal Lookup. |
+| userImplicit | user | pastukhov.lab | userImplicit | - | Corner: userPrincipalName ?? ?????, ??????????? generated UPN. |
+| userUpnSet | user | pastukhov.lab | userUpnSet | UPN: userUpnSetX@pastukhov.lab | Corner: explicit UPN ?????????? ?? generated UPN. |
+| userImplicitOwner | user | pastukhov.lab | userImplicitOwner | - | Corner: ???????? generated UPN, ??????? ???????????? ? explicit UPN ??????? ???????. |
+| userConflict | user | pastukhov.lab | userConflict | UPN: userImplicitOwner@pastukhov.lab | Corner: explicit UPN ????????? ? generated UPN userImplicitOwner ? ?????? ????? ?????????. |
+| userTrustPastukhov | user | pastukhov.lab | userTrust | UPN: userTrust@pastukhov.lab | Corner: ?????????? UPN ? ???? ???????, ????????? pastukhov.lab. |
+| userTrustDomain3 | user | domain3.lab | userTrust | UPN: userTrust@pastukhov.lab | Corner: ?????????? UPN ? ???? ???????, ????????? domain3.lab. |
+| dnEscapedComma | user | pastukhov.lab | dnEscapedComma | UPN: dnEscapedComma@pastukhov.lab | DN ?? ???????????? ???????. |
+| dnEscapedPlus | user | pastukhov.lab | dnEscapedPlus | UPN: dnEscapedPlus@pastukhov.lab | DN ?? ???????????? ????. |
+| dnEscapedQuote | user | pastukhov.lab | dnEscapedQuote | UPN: dnEscapedQuote@pastukhov.lab | DN ? ?????????. |
+| dnEscapedBackslash | user | pastukhov.lab | dnEscapedBackslash | UPN: dnEscapedBackslash@pastukhov.lab | DN ? ???????? ??????. |
+| dnEscapedAngle | user | pastukhov.lab | dnEscapedAngle | UPN: dnEscapedAngle@pastukhov.lab | DN ? ???????? ????????. |
+| dnEscapedSemicolon | user | pastukhov.lab | dnEscapedSemicolon | UPN: dnEscapedSemicolon@pastukhov.lab | DN ? ?????? ? ???????. |
+| dnEscapedEquals | user | pastukhov.lab | dnEscapedEquals | UPN: dnEscapedEquals@pastukhov.lab | DN ?? ?????? ?????. |
+| dnSlash | user | pastukhov.lab | dnSlash | UPN: dnSlash@pastukhov.lab | DN ?? ??????. |
+| dnEscapedHash | user | pastukhov.lab | dnEscapedHash | UPN: dnEscapedHash@pastukhov.lab | DN ? # ? ?????? ????????. |
+| cornerSamTarget | user | pastukhov.lab | cornerSamTarget | UPN: cornerSamTarget@pastukhov.lab; displayName: Corner SAM Target | ???? ??? ????? displayName = sAMAccountName. |
+| cornerUpnTarget | user | pastukhov.lab | cornerUpnTarget | UPN: cornerUpnTarget@pastukhov.lab | ???? ??? ????? displayName = userPrincipalName. |
+| cornerDownlevelTarget | user | pastukhov.lab | cornerDownlevelTarget | UPN: cornerDownlevelTarget@pastukhov.lab | ???? ??? ????? displayName = DOMAIN\user. |
+| cornerDnTarget | user | pastukhov.lab | cornerDnTarget | UPN: cornerDnTarget@pastukhov.lab | ???? ??? ????? displayName = distinguishedName. |
+| cornerCanonicalTarget | user | pastukhov.lab | cornerCanonicalTarget | UPN: cornerCanonicalTarget@pastukhov.lab | ???? ??? ????? displayName = canonicalName. |
+| cornerGuidTarget | user | pastukhov.lab | cornerGuidTarget | UPN: cornerGuidTarget@pastukhov.lab | ???? ??? ????? displayName = objectGUID. |
+| cornerSpnTarget | user | pastukhov.lab | cornerSpnTarget | UPN: cornerSpnTarget@pastukhov.lab; SPN: HTTP/cornerSpnTarget | ???? ??? ????? displayName = servicePrincipalName. |
+| cornerSidTarget | user | pastukhov.lab | cornerSidTarget | UPN: cornerSidTarget@pastukhov.lab | ???? ??? ????? displayName = objectSid. |
+| userDisplaySam | user | pastukhov.lab | userDisplaySam | UPN: userDisplaySam@pastukhov.lab; displayName: cornerSamTarget | Corner: displayName ????????? ? sAMAccountName ??????? ???????. |
+| userDisplayUpn | user | pastukhov.lab | userDisplayUpn | UPN: userDisplayUpn@pastukhov.lab; displayName: cornerUpnTarget@pastukhov.lab | Corner: displayName ????????? ? userPrincipalName ??????? ???????. |
+| userDisplayNetbios | user | pastukhov.lab | userDisplayNetbios | UPN: userDisplayNetbios@pastukhov.lab; displayName: PASTUKHOV\cornerDownlevelTarget | Corner: displayName ????????? ? down-level logon name. |
+| userDisplayDn | user | pastukhov.lab | userDisplayDn | UPN: userDisplayDn@pastukhov.lab; displayName: CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab | Corner: displayName ????????? ? distinguishedName. |
+| userDisplayCanonical | user | pastukhov.lab | userDisplayCanonical | UPN: userDisplayCanonical@pastukhov.lab; displayName: pastukhov.lab/Users/cornerCanonicalTarget | Corner: displayName ????????? ? canonicalName. |
+| userDisplayGuid | user | pastukhov.lab | userDisplayGuid | UPN: userDisplayGuid@pastukhov.lab; displayName: {cccccccc-0000-0000-0000-000000000066} | Corner: displayName ????????? ? objectGUID. |
+| userDisplaySpn | user | pastukhov.lab | userDisplaySpn | UPN: userDisplaySpn@pastukhov.lab; displayName: HTTP/cornerSpnTarget | Corner: displayName ????????? ? servicePrincipalName. |
+| userDisplaySid | user | pastukhov.lab | userDisplaySid | UPN: userDisplaySid@pastukhov.lab; displayName: S-1-5-21-2845156888-2425353457-3474467337-1668 | Corner: displayName ????????? ? objectSid. |
+| userSameDisplayOne | user | pastukhov.lab | userSameDisplayOne | UPN: userSameDisplayOne@pastukhov.lab; displayName: Same Display | Corner: ?????? ???????????? ? ?????????? displayName. |
+| userSameDisplayTwo | user | pastukhov.lab | userSameDisplayTwo | UPN: userSameDisplayTwo@pastukhov.lab; displayName: Same Display | Corner: ?????? ???????????? ? ?????????? displayName. |
 
-- `sAMAccountName`
-- `userPrincipalName`
-- `distinguishedName`
-- `canonicalName`
-- `displayName`
-- `objectGUID`
-- `objectSid`
-- `servicePrincipalName`
-- `sIDHistory`
-- `domainFQDN`
-- `domainNetBIOS`
-- `object_type`
+## ??????????? ?????
 
-В snapshot включены базовые пользователи `userA`, `userB`, сервисный объект DC, а также corner-объекты из статьи: implicit/generated UPN, explicit UPN priority, одинаковый UPN в разных доменах, DN со спецсимволами и пересечения `displayName` с другими форматами.
+? ??????? ???? ??????????? ?????????????? ???????? ?? `tests.json`. ?????? ?? ?? ?????? ????? ?? ?????????: ???????? ????????? ?????? ?????, ????? ????????? ? ????????? ??????.
 
-## Тесты
+| id | ?????? | ???? | ????????? ????????? |
+|---|---|---|---|
+| ldap_sam_userA_not_accepted | ldap_table | userA | displayName -> object_not_found |
+| ldap_upn_userA | ldap_table | userA@pastukhov.lab | userPrincipalName -> userA |
+| ldap_upn_userB | ldap_table | userB@domain3.lab | userPrincipalName -> userB |
+| ldap_downlevel_userA | ldap_table | PASTUKHOV\userA | downLevelLogonName -> userA |
+| ldap_downlevel_userB | ldap_table | DOMAIN3\userB | downLevelLogonName -> userB |
+| ldap_dn_userA | ldap_table | CN=userA,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> userA |
+| ldap_dn_userB | ldap_table | CN=userB,CN=Users,DC=domain3,DC=lab | distinguishedName -> userB |
+| ldap_canonical_userA | ldap_table | pastukhov.lab/Users/userA | canonicalName -> userA |
+| ldap_canonical_userB | ldap_table | domain3.lab/Users/userB | canonicalName -> userB |
+| ldap_display_userA | ldap_table | User A | displayName -> userA |
+| ldap_display_userB | ldap_table | UserB | displayName -> userB |
+| ldap_guid_userA | ldap_table | {5c69b042-e0e9-475a-ae37-1751ef9e05e7} | objectGUID -> userA |
+| ldap_guid_userB | ldap_table | {36eba909-f454-4695-918b-dcdf33b7cd88} | objectGUID -> userB |
+| ldap_spn_userA | ldap_table | HTTP/userA | servicePrincipalName -> userA |
+| ldap_spn_userB | ldap_table | HTTP/userB | servicePrincipalName -> userB |
+| ldap_object_sid_userA | ldap_table | S-1-5-21-2845156888-2425353457-3474467337-1114 | objectSid -> userA |
+| ldap_object_sid_userB | ldap_table | S-1-5-21-3677553567-317466416-2570716728-1106 | objectSid -> userB |
+| ldap_mapspn_userA | ldap_table | HOST/userA | MapSPN -> userA |
+| ldap_mapspn_userB | ldap_table | HOST/userB | MapSPN -> userB |
+| ldap_sid_history_userA | ldap_algorithm | S-1-5-21-2845156888-2425353457-3474467337-5114 | sIDHistory -> userA |
+| ldap_canonical_lf_userA | ldap_algorithm | pastukhov.lab/Users\nuserA | canonicalNameWithLF -> userA |
+| ldap_dnEscapedComma | ldap_dn_special | CN=user\,A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedComma |
+| ldap_dnEscapedPlus | ldap_dn_special | CN=user\+A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedPlus |
+| ldap_dnEscapedQuote | ldap_dn_special | CN=user\"A\",CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedQuote |
+| ldap_dnEscapedBackslash | ldap_dn_special | CN=user\\A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedBackslash |
+| ldap_dnEscapedAngle | ldap_dn_special | CN=user\<A\>,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedAngle |
+| ldap_dnEscapedSemicolon | ldap_dn_special | CN=user\;A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedSemicolon |
+| ldap_dnEscapedEquals | ldap_dn_special | CN=user\=A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedEquals |
+| ldap_dnSlash | ldap_dn_special | CN=user/A,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnSlash |
+| ldap_dnEscapedHash | ldap_dn_special | CN=\#userA,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> dnEscapedHash |
+| ldap_generated_upn | ldap_corner | userImplicit@pastukhov.lab | generatedUPN -> userImplicit |
+| ldap_implicit_upn_still_resolves_when_explicit_set | ldap_corner | userUpnSet@pastukhov.lab | generatedUPN -> userUpnSet |
+| ldap_explicit_changed_upn | ldap_corner | userUpnSetX@pastukhov.lab | userPrincipalName -> userUpnSet |
+| ldap_explicit_upn_wins | ldap_corner | userImplicitOwner@pastukhov.lab | userPrincipalName -> userConflict |
+| ldap_trust_local_pastukhov_wins | ldap_corner | userTrust@pastukhov.lab | userPrincipalName -> userTrustPastukhov |
+| ldap_trust_local_domain3_wins | ldap_corner | userTrust@pastukhov.lab | userPrincipalName -> userTrustDomain3 |
+| ldap_duplicate_display_name | ldap_corner | Same Display | displayName -> not_unique |
+| ldap_display_equals_sam | ldap_corner | cornerSamTarget | displayName -> userDisplaySam |
+| ldap_display_equals_upn | ldap_corner | cornerUpnTarget@pastukhov.lab | userPrincipalName -> cornerUpnTarget |
+| ldap_display_equals_downlevel | ldap_corner | PASTUKHOV\cornerDownlevelTarget | downLevelLogonName -> cornerDownlevelTarget |
+| ldap_display_equals_dn | ldap_corner | CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab | distinguishedName -> cornerDnTarget |
+| ldap_display_equals_canonical | ldap_corner | pastukhov.lab/Users/cornerCanonicalTarget | canonicalName -> cornerCanonicalTarget |
+| ldap_display_equals_guid | ldap_corner | {cccccccc-0000-0000-0000-000000000066} | objectGUID -> cornerGuidTarget |
+| ldap_display_equals_spn | ldap_corner | HTTP/cornerSpnTarget | displayName -> userDisplaySpn |
+| ldap_display_equals_sid | ldap_corner | S-1-5-21-2845156888-2425353457-3474467337-1668 | displayName -> userDisplaySid |
+| krb_as_enterprise_upn_userA | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userA@pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/userPrincipalName -> userA |
+| krb_as_enterprise_upn_userB | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userB@domain3.lab]; realm=DOMAIN3.LAB | NT-ENTERPRISE/userPrincipalName -> userB |
+| krb_as_enterprise_generated_upn | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userImplicit@pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/generatedUPN -> userImplicit |
+| krb_as_enterprise_implicit_upn_with_explicit_set | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userUpnSet@pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/generatedUPN -> userUpnSet |
+| krb_as_enterprise_explicit_changed_upn | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userUpnSetX@pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/userPrincipalName -> userUpnSet |
+| krb_as_enterprise_explicit_wins | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[userImplicitOwner@pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/userPrincipalName -> userConflict |
+| krb_as_principal_sam_userA | kerberos_client_lookup | AS-REQ; cname.name-type=1; name-string=[userA]; realm=PASTUKHOV.LAB | NT-PRINCIPAL/sAMAccountName -> userA |
+| krb_as_principal_sam_userB | kerberos_client_lookup | AS-REQ; cname.name-type=1; name-string=[userB]; realm=DOMAIN3.LAB | NT-PRINCIPAL/sAMAccountName -> userB |
+| krb_as_principal_sam_dollar | kerberos_client_lookup | AS-REQ; cname.name-type=1; name-string=[10-23-RP-DC-01]; realm=PASTUKHOV.LAB | NT-PRINCIPAL/sAMAccountName+$ -> dc01 |
+| krb_as_principal_upn_fallback | kerberos_client_lookup | AS-REQ; cname.name-type=1; name-string=[userUpnSetX]; realm=PASTUKHOV.LAB | NT-PRINCIPAL/userPrincipalName -> userUpnSet |
+| krb_as_dn_not_accepted | kerberos_client_lookup | AS-REQ; cname.name-type=10; name-string=[CN=userA,CN=Users,DC=pastukhov,DC=lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE -> object_not_found |
+| krb_tgs_srv_inst_userprincipalname_not_found | kerberos_server_lookup | TGS-REQ; sname.name-type=2; name-string=[cifs, 10-23-RP-DC-01.pastukhov.lab]; realm=PASTUKHOV.LAB | NT-SRV-INST/userPrincipalName -> object_not_found |
+| krb_tgs_krbtgt_special_case | kerberos_server_lookup | TGS-REQ; sname.name-type=2; name-string=[krbtgt, krbtgt]; realm=PASTUKHOV.LAB | NT-SRV-INST/krbtgt/sAMAccountName -> krbtgt |
+| krb_tgs_srv_inst_sam_dollar | kerberos_server_lookup | TGS-REQ; sname.name-type=2; name-string=[10-23-RP-DC-01]; realm=PASTUKHOV.LAB | NT-SRV-INST/sAMAccountName+$ -> dc01 |
+| krb_tgs_enterprise_spn_dc | kerberos_server_lookup | TGS-REQ; sname.name-type=10; name-string=[cifs/10-23-RP-DC-01.pastukhov.lab]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/servicePrincipalName -> dc01 |
+| krb_tgs_enterprise_spn_userA | kerberos_server_lookup | TGS-REQ; sname.name-type=10; name-string=[HTTP/userA]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/servicePrincipalName -> userA |
+| krb_tgs_enterprise_sam_with_spn | kerberos_server_lookup | TGS-REQ; sname.name-type=10; name-string=[userA]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/sAMAccountName -> userA |
+| krb_tgs_enterprise_fallback_without_spn_fails | kerberos_server_lookup | TGS-REQ; sname.name-type=10; name-string=[userUpnSet]; realm=PASTUKHOV.LAB | NT-ENTERPRISE/sAMAccountName -> object_not_found |
 
-Тесты лежат в `tests.json`. Некоторые проверки используют свой `snapshot`-сценарий: это нужно потому, что corner-объекты из статьи могут намеренно менять результат другого формата. Например, пользователь с `displayName = HTTP/userA` должен проверяться отдельно от базового теста `servicePrincipalName = HTTP/userA`.
+## ??????
 
-Основные разделы тестов:
-
-- `ldap_table`
-- `ldap_algorithm`
-- `ldap_dn_special`
-- `ldap_corner`
-- `kerberos_client_lookup`
-- `kerberos_server_lookup`
-
-## Запуск
-
-Интерактивный режим:
+????????????? ?????:
 
 ```powershell
 python run.py
 ```
 
-Все тесты:
+??? ?????:
 
 ```powershell
 python run.py --run-all
 ```
 
-Список тестов:
+?????? ??????:
 
 ```powershell
 python run.py --list-tests
 ```
 
-Раздел тестов:
+?????? ??????:
 
 ```powershell
 python run.py --run-category ldap_corner
 ```
 
-В ручном режиме можно выбрать LDAP или Kerberos, ввести поля события и посмотреть краткий итог, JSON-результат и технический trace проверок.
+? ?????? ?????? ????? ??????? LDAP ??? Kerberos, ?????? ???? ??????? ? ?????????? ??????? ????, JSON-????????? ? ??????????? trace ????????.
