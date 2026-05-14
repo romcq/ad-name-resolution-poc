@@ -1,1 +1,1 @@
-"""AD-like name resolution prototype package."""
+"""Пакет прототипа AD-like name resolution."""

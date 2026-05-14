@@ -1,4 +1,4 @@
-"""Loading, running and printing JSON-defined resolver tests."""
+"""Загрузка, запуск и печать тестов резолвера из JSON."""
 
 from __future__ import annotations
 
@@ -20,13 +20,23 @@ class TestCase:
     expected: dict[str, Any]
 
 
+CATEGORY_LABELS = {
+    "ldap_table": "LDAP: форматы из таблицы",
+    "ldap_algorithm": "LDAP: дополнительные шаги алгоритма",
+    "ldap_dn_special": "LDAP: спецсимволы в DN",
+    "ldap_corner": "LDAP: пересечения полей и приоритеты",
+    "kerberos_client_lookup": "Kerberos: Client Principal Lookup",
+    "kerberos_server_lookup": "Kerberos: Server Principal Lookup",
+}
+
+
 def load_tests(path: str | Path) -> list[TestCase]:
     with Path(path).open("r", encoding="utf-8") as file:
         raw = json.load(file)
     return [
         TestCase(
             id=item["id"],
-            category=item.get("category", "uncategorized"),
+            category=item.get("category", "без_категории"),
             description=item["description"],
             input=item["input"],
             expected=item["expected"],
@@ -37,7 +47,8 @@ def load_tests(path: str | Path) -> list[TestCase]:
 
 def list_tests(tests: list[TestCase]) -> None:
     for index, test in enumerate(tests, 1):
-        print(f"{index:02d}. [{test.category}] {test.description}")
+        category_label = CATEGORY_LABELS.get(test.category, test.category)
+        print(f"{index:02d}. [{category_label}] {test.description}")
 
 
 def run_test(
@@ -79,28 +90,28 @@ def run_all_tests(
 
 
 def print_test_result(result: dict[str, Any], verbose: bool = True) -> None:
-    status = "passed" if result["passed"] else "failed"
+    status = "пройден" if result["passed"] else "ошибка"
     print(f"\n[{status}] {result['id']} - {result['description']}")
     actual = result["actual"]
     parsed_format = actual.get("matched_format") or actual.get("detected_format") or "-"
     parsed_object = actual.get("matched_object_id") or "-"
     parsed_reason = actual.get("reason") or "-"
     print(
-        "parsed: "
-        f"branch={actual.get('algorithm_branch') or '-'}, "
-        f"format={parsed_format}, "
-        f"object={parsed_object}, "
-        f"reason={parsed_reason}"
+        "разбор: "
+        f"ветка={actual.get('algorithm_branch') or '-'}, "
+        f"формат={parsed_format}, "
+        f"объект={parsed_object}, "
+        f"причина={parsed_reason}"
     )
     if verbose or not result["passed"]:
-        print("expected:")
+        print("ожидалось:")
         print(json.dumps(result["expected"], ensure_ascii=False, indent=2))
-        print("actual:")
+        print("получилось:")
         print(json.dumps(result["actual"], ensure_ascii=False, indent=2))
     if not result["passed"]:
         # Trace печатаем только на failed-тестах, чтобы видеть, какой шаг
         # алгоритма разошелся с expectation.
-        print("mismatches:")
+        print("расхождения:")
         print(json.dumps(result["mismatches"], ensure_ascii=False, indent=2))
         if result.get("trace"):
             print("trace:")
@@ -110,4 +121,4 @@ def print_test_result(result: dict[str, Any], verbose: bool = True) -> None:
 def print_summary(results: list[dict[str, Any]]) -> None:
     passed = sum(1 for result in results if result["passed"])
     failed = len(results) - passed
-    print(f"\nSummary: {passed} passed, {failed} failed, {len(results)} total")
+    print(f"\nИтог: пройдено {passed}, ошибок {failed}, всего {len(results)}")

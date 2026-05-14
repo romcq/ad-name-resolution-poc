@@ -1,10 +1,10 @@
 {
-  "description": "Resolver tests based on the article tables and algorithm sections. All tests use the same ad_snapshot.json database.",
+  "description": "Тесты резолвера по таблицам и алгоритмам статьи. Все кейсы используют единую базу ad_snapshot.json.",
   "tests": [
     {
       "id": "ldap_sam_userA_not_accepted",
       "category": "ldap_table",
-      "description": "LDAP: userA => displayName -> object_not_found",
+      "description": "LDAP: вход \"userA\" -> ожидаемый формат: displayName -> результат: object_not_found",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -25,7 +25,7 @@
     {
       "id": "ldap_upn_userA",
       "category": "ldap_table",
-      "description": "LDAP: userA@pastukhov.lab => userPrincipalName -> userA",
+      "description": "LDAP: вход \"userA@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -47,7 +47,7 @@
     {
       "id": "ldap_upn_userB",
       "category": "ldap_table",
-      "description": "LDAP: userB@domain3.lab => userPrincipalName -> userB",
+      "description": "LDAP: вход \"userB@domain3.lab\" -> ожидаемый формат: userPrincipalName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -69,7 +69,7 @@
     {
       "id": "ldap_downlevel_userA",
       "category": "ldap_table",
-      "description": "LDAP: PASTUKHOV\\userA => downLevelLogonName -> userA",
+      "description": "LDAP: вход \"PASTUKHOV\\userA\" -> ожидаемый формат: downLevelLogonName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -91,7 +91,7 @@
     {
       "id": "ldap_downlevel_userB",
       "category": "ldap_table",
-      "description": "LDAP: DOMAIN3\\userB => downLevelLogonName -> userB",
+      "description": "LDAP: вход \"DOMAIN3\\userB\" -> ожидаемый формат: downLevelLogonName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -113,7 +113,7 @@
     {
       "id": "ldap_dn_userA",
       "category": "ldap_table",
-      "description": "LDAP: CN=userA,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> userA",
+      "description": "LDAP: вход \"CN=userA,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -135,7 +135,7 @@
     {
       "id": "ldap_dn_userB",
       "category": "ldap_table",
-      "description": "LDAP: CN=userB,CN=Users,DC=domain3,DC=lab => distinguishedName -> userB",
+      "description": "LDAP: вход \"CN=userB,CN=Users,DC=domain3,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -157,7 +157,7 @@
     {
       "id": "ldap_canonical_userA",
       "category": "ldap_table",
-      "description": "LDAP: pastukhov.lab/Users/userA => canonicalName -> userA",
+      "description": "LDAP: вход \"pastukhov.lab/Users/userA\" -> ожидаемый формат: canonicalName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -179,7 +179,7 @@
     {
       "id": "ldap_canonical_userB",
       "category": "ldap_table",
-      "description": "LDAP: domain3.lab/Users/userB => canonicalName -> userB",
+      "description": "LDAP: вход \"domain3.lab/Users/userB\" -> ожидаемый формат: canonicalName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -201,7 +201,7 @@
     {
       "id": "ldap_display_userA",
       "category": "ldap_table",
-      "description": "LDAP: User A => displayName -> userA",
+      "description": "LDAP: вход \"User A\" -> ожидаемый формат: displayName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -223,7 +223,7 @@
     {
       "id": "ldap_display_userB",
       "category": "ldap_table",
-      "description": "LDAP: UserB => displayName -> userB",
+      "description": "LDAP: вход \"UserB\" -> ожидаемый формат: displayName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -245,7 +245,7 @@
     {
       "id": "ldap_guid_userA",
       "category": "ldap_table",
-      "description": "LDAP: {5c69b042-e0e9-475a-ae37-1751ef9e05e7} => objectGUID -> userA",
+      "description": "LDAP: вход \"{5c69b042-e0e9-475a-ae37-1751ef9e05e7}\" -> ожидаемый формат: objectGUID -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -267,7 +267,7 @@
     {
       "id": "ldap_guid_userB",
       "category": "ldap_table",
-      "description": "LDAP: {36eba909-f454-4695-918b-dcdf33b7cd88} => objectGUID -> userB",
+      "description": "LDAP: вход \"{36eba909-f454-4695-918b-dcdf33b7cd88}\" -> ожидаемый формат: objectGUID -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -289,7 +289,7 @@
     {
       "id": "ldap_spn_userA",
       "category": "ldap_table",
-      "description": "LDAP: HTTP/userA => servicePrincipalName -> userA",
+      "description": "LDAP: вход \"HTTP/userA\" -> ожидаемый формат: servicePrincipalName -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -311,7 +311,7 @@
     {
       "id": "ldap_spn_userB",
       "category": "ldap_table",
-      "description": "LDAP: HTTP/userB => servicePrincipalName -> userB",
+      "description": "LDAP: вход \"HTTP/userB\" -> ожидаемый формат: servicePrincipalName -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -333,7 +333,7 @@
     {
       "id": "ldap_object_sid_userA",
       "category": "ldap_table",
-      "description": "LDAP: S-1-5-21-2845156888-2425353457-3474467337-1114 => objectSid -> userA",
+      "description": "LDAP: вход \"S-1-5-21-2845156888-2425353457-3474467337-1114\" -> ожидаемый формат: objectSid -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -355,7 +355,7 @@
     {
       "id": "ldap_object_sid_userB",
       "category": "ldap_table",
-      "description": "LDAP: S-1-5-21-3677553567-317466416-2570716728-1106 => objectSid -> userB",
+      "description": "LDAP: вход \"S-1-5-21-3677553567-317466416-2570716728-1106\" -> ожидаемый формат: objectSid -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -377,7 +377,7 @@
     {
       "id": "ldap_mapspn_userA",
       "category": "ldap_table",
-      "description": "LDAP: HOST/userA => MapSPN -> userA",
+      "description": "LDAP: вход \"HOST/userA\" -> ожидаемый формат: MapSPN -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -399,7 +399,7 @@
     {
       "id": "ldap_mapspn_userB",
       "category": "ldap_table",
-      "description": "LDAP: HOST/userB => MapSPN -> userB",
+      "description": "LDAP: вход \"HOST/userB\" -> ожидаемый формат: MapSPN -> результат: userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -421,7 +421,7 @@
     {
       "id": "ldap_sid_history_userA",
       "category": "ldap_algorithm",
-      "description": "LDAP: S-1-5-21-2845156888-2425353457-3474467337-5114 => sIDHistory -> userA",
+      "description": "LDAP: вход \"S-1-5-21-2845156888-2425353457-3474467337-5114\" -> ожидаемый формат: sIDHistory -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -443,7 +443,7 @@
     {
       "id": "ldap_canonical_lf_userA",
       "category": "ldap_algorithm",
-      "description": "LDAP: pastukhov.lab/Users\nuserA => canonicalNameWithLF -> userA",
+      "description": "LDAP: вход \"pastukhov.lab/Users\\nuserA\" -> ожидаемый формат: canonicalNameWithLF -> результат: userA",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -465,7 +465,7 @@
     {
       "id": "ldap_dnEscapedComma",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\,A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedComma",
+      "description": "LDAP: вход \"CN=user\\,A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedComma",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -487,7 +487,7 @@
     {
       "id": "ldap_dnEscapedPlus",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\+A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedPlus",
+      "description": "LDAP: вход \"CN=user\\+A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedPlus",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -509,7 +509,7 @@
     {
       "id": "ldap_dnEscapedQuote",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\\"A\\\",CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedQuote",
+      "description": "LDAP: вход \"CN=user\\\"A\\\",CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedQuote",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -531,7 +531,7 @@
     {
       "id": "ldap_dnEscapedBackslash",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\\\A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedBackslash",
+      "description": "LDAP: вход \"CN=user\\\\A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedBackslash",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -553,7 +553,7 @@
     {
       "id": "ldap_dnEscapedAngle",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\<A\\>,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedAngle",
+      "description": "LDAP: вход \"CN=user\\<A\\>,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedAngle",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -575,7 +575,7 @@
     {
       "id": "ldap_dnEscapedSemicolon",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\;A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedSemicolon",
+      "description": "LDAP: вход \"CN=user\\;A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedSemicolon",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -597,7 +597,7 @@
     {
       "id": "ldap_dnEscapedEquals",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user\\=A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedEquals",
+      "description": "LDAP: вход \"CN=user\\=A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedEquals",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -619,7 +619,7 @@
     {
       "id": "ldap_dnSlash",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=user/A,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnSlash",
+      "description": "LDAP: вход \"CN=user/A,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnSlash",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -641,7 +641,7 @@
     {
       "id": "ldap_dnEscapedHash",
       "category": "ldap_dn_special",
-      "description": "LDAP: CN=\\#userA,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> dnEscapedHash",
+      "description": "LDAP: вход \"CN=\\#userA,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: dnEscapedHash",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -663,7 +663,7 @@
     {
       "id": "ldap_generated_upn",
       "category": "ldap_corner",
-      "description": "LDAP: userImplicit@pastukhov.lab => generatedUPN -> userImplicit",
+      "description": "LDAP: вход \"userImplicit@pastukhov.lab\" -> ожидаемый формат: generatedUPN -> результат: userImplicit",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -685,7 +685,7 @@
     {
       "id": "ldap_implicit_upn_still_resolves_when_explicit_set",
       "category": "ldap_corner",
-      "description": "LDAP: userUpnSet@pastukhov.lab => generatedUPN -> userUpnSet",
+      "description": "LDAP: вход \"userUpnSet@pastukhov.lab\" -> ожидаемый формат: generatedUPN -> результат: userUpnSet",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -707,7 +707,7 @@
     {
       "id": "ldap_explicit_changed_upn",
       "category": "ldap_corner",
-      "description": "LDAP: userUpnSetX@pastukhov.lab => userPrincipalName -> userUpnSet",
+      "description": "LDAP: вход \"userUpnSetX@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: userUpnSet",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -729,7 +729,7 @@
     {
       "id": "ldap_explicit_upn_wins",
       "category": "ldap_corner",
-      "description": "LDAP: userImplicitOwner@pastukhov.lab => userPrincipalName -> userConflict",
+      "description": "LDAP: вход \"userImplicitOwner@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: userConflict",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -751,7 +751,7 @@
     {
       "id": "ldap_trust_local_pastukhov_wins",
       "category": "ldap_corner",
-      "description": "LDAP: userTrust@pastukhov.lab => userPrincipalName -> userTrustPastukhov",
+      "description": "LDAP: вход \"userTrust@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: userTrustPastukhov",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -773,7 +773,7 @@
     {
       "id": "ldap_trust_local_domain3_wins",
       "category": "ldap_corner",
-      "description": "LDAP: userTrust@pastukhov.lab => userPrincipalName -> userTrustDomain3",
+      "description": "LDAP: вход \"userTrust@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: userTrustDomain3",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -795,7 +795,7 @@
     {
       "id": "ldap_duplicate_display_name",
       "category": "ldap_corner",
-      "description": "LDAP: Same Display => displayName -> not_unique",
+      "description": "LDAP: вход \"Same Display\" -> ожидаемый формат: displayName -> результат: not_unique",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -817,7 +817,7 @@
     {
       "id": "ldap_display_equals_sam",
       "category": "ldap_corner",
-      "description": "LDAP: cornerSamTarget => displayName -> userDisplaySam",
+      "description": "LDAP: вход \"cornerSamTarget\" -> ожидаемый формат: displayName -> результат: userDisplaySam",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -839,7 +839,7 @@
     {
       "id": "ldap_display_equals_upn",
       "category": "ldap_corner",
-      "description": "LDAP: cornerUpnTarget@pastukhov.lab => userPrincipalName -> cornerUpnTarget",
+      "description": "LDAP: вход \"cornerUpnTarget@pastukhov.lab\" -> ожидаемый формат: userPrincipalName -> результат: cornerUpnTarget",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -861,7 +861,7 @@
     {
       "id": "ldap_display_equals_downlevel",
       "category": "ldap_corner",
-      "description": "LDAP: PASTUKHOV\\cornerDownlevelTarget => downLevelLogonName -> cornerDownlevelTarget",
+      "description": "LDAP: вход \"PASTUKHOV\\cornerDownlevelTarget\" -> ожидаемый формат: downLevelLogonName -> результат: cornerDownlevelTarget",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -883,7 +883,7 @@
     {
       "id": "ldap_display_equals_dn",
       "category": "ldap_corner",
-      "description": "LDAP: CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab => distinguishedName -> cornerDnTarget",
+      "description": "LDAP: вход \"CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab\" -> ожидаемый формат: distinguishedName -> результат: cornerDnTarget",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -905,7 +905,7 @@
     {
       "id": "ldap_display_equals_canonical",
       "category": "ldap_corner",
-      "description": "LDAP: pastukhov.lab/Users/cornerCanonicalTarget => canonicalName -> cornerCanonicalTarget",
+      "description": "LDAP: вход \"pastukhov.lab/Users/cornerCanonicalTarget\" -> ожидаемый формат: canonicalName -> результат: cornerCanonicalTarget",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -927,7 +927,7 @@
     {
       "id": "ldap_display_equals_guid",
       "category": "ldap_corner",
-      "description": "LDAP: {cccccccc-0000-0000-0000-000000000066} => objectGUID -> cornerGuidTarget",
+      "description": "LDAP: вход \"{cccccccc-0000-0000-0000-000000000066}\" -> ожидаемый формат: objectGUID -> результат: cornerGuidTarget",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -949,7 +949,7 @@
     {
       "id": "ldap_display_equals_spn",
       "category": "ldap_corner",
-      "description": "LDAP: HTTP/cornerSpnTarget => displayName -> userDisplaySpn",
+      "description": "LDAP: вход \"HTTP/cornerSpnTarget\" -> ожидаемый формат: displayName -> результат: userDisplaySpn",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -971,7 +971,7 @@
     {
       "id": "ldap_display_equals_sid",
       "category": "ldap_corner",
-      "description": "LDAP: S-1-5-21-2845156888-2425353457-3474467337-1668 => displayName -> userDisplaySid",
+      "description": "LDAP: вход \"S-1-5-21-2845156888-2425353457-3474467337-1668\" -> ожидаемый формат: displayName -> результат: userDisplaySid",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -993,7 +993,7 @@
     {
       "id": "krb_as_enterprise_upn_userA",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userA@pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/userPrincipalName -> userA",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userA@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userA",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1017,7 +1017,7 @@
     {
       "id": "krb_as_enterprise_upn_userB",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userB@domain3.lab] realm=DOMAIN3.LAB => NT-ENTERPRISE/userPrincipalName -> userB",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userB@domain3.lab], realm=DOMAIN3.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userB",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1041,7 +1041,7 @@
     {
       "id": "krb_as_enterprise_generated_upn",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userImplicit@pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/generatedUPN -> userImplicit",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userImplicit@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/generatedUPN -> результат: userImplicit",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1065,7 +1065,7 @@
     {
       "id": "krb_as_enterprise_implicit_upn_with_explicit_set",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userUpnSet@pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/generatedUPN -> userUpnSet",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userUpnSet@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/generatedUPN -> результат: userUpnSet",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1089,7 +1089,7 @@
     {
       "id": "krb_as_enterprise_explicit_changed_upn",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userUpnSetX@pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/userPrincipalName -> userUpnSet",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userUpnSetX@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userUpnSet",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1113,7 +1113,7 @@
     {
       "id": "krb_as_enterprise_explicit_wins",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[userImplicitOwner@pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/userPrincipalName -> userConflict",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[userImplicitOwner@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userConflict",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1137,7 +1137,7 @@
     {
       "id": "krb_as_principal_sam_userA",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=1 name=[userA] realm=PASTUKHOV.LAB => NT-PRINCIPAL/sAMAccountName -> userA",
+      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[userA], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName -> результат: userA",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1161,7 +1161,7 @@
     {
       "id": "krb_as_principal_sam_userB",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=1 name=[userB] realm=DOMAIN3.LAB => NT-PRINCIPAL/sAMAccountName -> userB",
+      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[userB], realm=DOMAIN3.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName -> результат: userB",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1185,7 +1185,7 @@
     {
       "id": "krb_as_principal_sam_dollar",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=1 name=[10-23-RP-DC-01] realm=PASTUKHOV.LAB => NT-PRINCIPAL/sAMAccountName+$ -> dc01",
+      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[10-23-RP-DC-01], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName+$ -> результат: dc01",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1209,7 +1209,7 @@
     {
       "id": "krb_as_principal_upn_fallback",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=1 name=[userUpnSetX] realm=PASTUKHOV.LAB => NT-PRINCIPAL/userPrincipalName -> userUpnSet",
+      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[userUpnSetX], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/userPrincipalName -> результат: userUpnSet",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1233,7 +1233,7 @@
     {
       "id": "krb_as_dn_not_accepted",
       "category": "kerberos_client_lookup",
-      "description": "Kerberos AS-REQ client lookup: AS-REQ cname type=10 name=[CN=userA,CN=Users,DC=pastukhov,DC=lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE -> object_not_found",
+      "description": "Kerberos AS-REQ: cname name-type=10, name-string=[CN=userA,CN=Users,DC=pastukhov,DC=lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE -> результат: object_not_found",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -1256,7 +1256,7 @@
     {
       "id": "krb_tgs_srv_inst_userprincipalname_not_found",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=2 name=[cifs,10-23-RP-DC-01.pastukhov.lab] realm=PASTUKHOV.LAB => NT-SRV-INST/userPrincipalName -> object_not_found",
+      "description": "Kerberos TGS-REQ: sname name-type=2, name-string=[cifs, 10-23-RP-DC-01.pastukhov.lab], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/userPrincipalName -> результат: object_not_found",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1280,7 +1280,7 @@
     {
       "id": "krb_tgs_krbtgt_special_case",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=2 name=[krbtgt,krbtgt] realm=PASTUKHOV.LAB => NT-SRV-INST/krbtgt/sAMAccountName -> krbtgt",
+      "description": "Kerberos TGS-REQ: sname name-type=2, name-string=[krbtgt, krbtgt], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/krbtgt/sAMAccountName -> результат: krbtgt",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1305,7 +1305,7 @@
     {
       "id": "krb_tgs_srv_inst_sam_dollar",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=2 name=[10-23-RP-DC-01] realm=PASTUKHOV.LAB => NT-SRV-INST/sAMAccountName+$ -> dc01",
+      "description": "Kerberos TGS-REQ: sname name-type=2, name-string=[10-23-RP-DC-01], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/sAMAccountName+$ -> результат: dc01",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1329,7 +1329,7 @@
     {
       "id": "krb_tgs_enterprise_spn_dc",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=10 name=[cifs/10-23-RP-DC-01.pastukhov.lab] realm=PASTUKHOV.LAB => NT-ENTERPRISE/servicePrincipalName -> dc01",
+      "description": "Kerberos TGS-REQ: sname name-type=10, name-string=[cifs/10-23-RP-DC-01.pastukhov.lab], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/servicePrincipalName -> результат: dc01",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1353,7 +1353,7 @@
     {
       "id": "krb_tgs_enterprise_spn_userA",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=10 name=[HTTP/userA] realm=PASTUKHOV.LAB => NT-ENTERPRISE/servicePrincipalName -> userA",
+      "description": "Kerberos TGS-REQ: sname name-type=10, name-string=[HTTP/userA], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/servicePrincipalName -> результат: userA",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1377,7 +1377,7 @@
     {
       "id": "krb_tgs_enterprise_sam_with_spn",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=10 name=[userA] realm=PASTUKHOV.LAB => NT-ENTERPRISE/sAMAccountName -> userA",
+      "description": "Kerberos TGS-REQ: sname name-type=10, name-string=[userA], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/sAMAccountName -> результат: userA",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",
@@ -1401,7 +1401,7 @@
     {
       "id": "krb_tgs_enterprise_fallback_without_spn_fails",
       "category": "kerberos_server_lookup",
-      "description": "Kerberos TGS-REQ server lookup: TGS-REQ sname type=10 name=[userUpnSet] realm=PASTUKHOV.LAB => NT-ENTERPRISE/sAMAccountName -> object_not_found",
+      "description": "Kerberos TGS-REQ: sname name-type=10, name-string=[userUpnSet], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/sAMAccountName -> результат: object_not_found",
       "input": {
         "protocol": "Kerberos",
         "message_type": "TGS-REQ",

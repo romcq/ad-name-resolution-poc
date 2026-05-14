@@ -1,5 +1,5 @@
 {
-  "description": "AD snapshot for AD-like name resolution PoC. All tests use this single object set.",
+  "description": "Локальный снимок AD для прототипа AD-like name resolution. Одна база используется в ручном режиме и во всех тестах.",
   "spn_mappings": {
     "HOST": [
       "HTTP",

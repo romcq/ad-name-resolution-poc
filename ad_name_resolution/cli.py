@@ -1,4 +1,4 @@
-"""Command line interface for manual checks and JSON-defined test cases."""
+"""CLI для ручных проверок и тестов, описанных в JSON."""
 
 from __future__ import annotations
 
@@ -45,13 +45,13 @@ def load_config(path: Path = DEFAULT_DB) -> tuple[ADSnapshotRepository, dict[str
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="AD-like name resolution prototype")
-    parser.add_argument("--db", default=str(DEFAULT_DB), help="Path to AD snapshot JSON")
-    parser.add_argument("--tests", default=str(DEFAULT_TESTS), help="Path to tests JSON")
-    parser.add_argument("--manual", action="store_true", help="Run manual interactive mode")
-    parser.add_argument("--list-tests", action="store_true", help="List tests from tests.json")
-    parser.add_argument("--run-all", action="store_true", help="Run all tests")
-    parser.add_argument("--run-category", help="Run tests from one category")
+    parser = argparse.ArgumentParser(description="Прототип AD-like name resolution")
+    parser.add_argument("--db", default=str(DEFAULT_DB), help="Путь к JSON-базе AD snapshot")
+    parser.add_argument("--tests", default=str(DEFAULT_TESTS), help="Путь к JSON-файлу тестов")
+    parser.add_argument("--manual", action="store_true", help="Запустить ручной интерактивный режим")
+    parser.add_argument("--list-tests", action="store_true", help="Показать список тестов из tests.json")
+    parser.add_argument("--run-all", action="store_true", help="Запустить все тесты")
+    parser.add_argument("--run-category", help="Запустить тесты из одного раздела")
     args = parser.parse_args(argv)
 
     repository, spn_mappings = load_config(Path(args.db))
