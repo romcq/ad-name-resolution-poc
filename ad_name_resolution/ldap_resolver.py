@@ -154,9 +154,10 @@ def match_upn_or_generated_upn(
     domain_context: str | None,
     trace: list[dict],
 ) -> ResolutionResult | None:
-    # LDAP step 2: UPN-like строка. Сначала ищем явный userPrincipalName.
-    # Если его нет, пробуем generated UPN: sAMAccountName@domainFQDN, но только
-    # для объектов без явно заданного userPrincipalName.
+    # LDAP step 2: UPN-like строка. Сначала AD проверяет явный userPrincipalName.
+    # Если он не найден, то та же строка может разрешиться как generated/implicit UPN:
+    # sAMAccountName@domainFQDN. Так как этот шаг идет после явного UPN, explicit
+    # userPrincipalName имеет приоритет над generated UPN другого объекта.
     parts = split_upn(name)
     if parts is None:
         _trace(trace, step="userPrincipalName/generatedUPN", syntax_match=False)

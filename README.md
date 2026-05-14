@@ -1,94 +1,135 @@
-# AD-like Name Resolution Prototype v2
+# AD-like Name Resolution Prototype
 
-Прототип проверяет блок AD-like name resolution по статье и согласованным уточнениям: уже разобранное LDAP/Kerberos-событие попадает в resolver, выбирается ветка алгоритма, определяется формат имени и выполняется поиск в локальном AD snapshot.
+Прототип демонстрирует блок AD-like name resolution для ITDR-сценария: на вход приходит уже разобранное LDAP или Kerberos-событие, resolver определяет формат имени, ищет объект в локальном AD snapshot и возвращает результат сопоставления.
 
-Это не точная эмуляция одного KDC/DC. Модель ближе к ITDR-продукту: продукт уже имеет snapshot доступных AD-объектов и сопоставляет значения из трафика с этой базой. Поэтому полные идентификаторы могут искаться по всему snapshot, а `realm` / `domain_context` используются как контекст для коротких или неоднозначных имен.
-
-Старый PoC в этой логике не используется. База и тесты ограничены объектами и кейсами из статьи/таблиц; искусственные `ambiguous`/`candidate_object_ids` сценарии убраны.
+Проект не подключается к реальному AD, не выполняет LDAP Bind/Kerberos-обмен и не парсит pcap. Он проверяет именно алгоритм разбора имени и поиска объекта по данным, которые в реальной системе пришли бы из сетевого парсера.
 
 ## Структура
 
 - `run.py` - точка запуска CLI.
-- `ad_snapshot.json` - локальный AD snapshot и упрощенные MapSPN mappings.
-- `tests.json` - тесты с описанием, входным событием и expected-result.
-- `ad_name_resolution/` - router, LDAP resolver, Kerberos resolver, repository, CLI и test runner.
+- `ad_snapshot.json` - локальный AD snapshot: пользователи, сервисные объекты, домены, SPN mappings.
+- `tests.json` - автоматические проверки по таблицам и алгоритмам из статьи.
+- `ad_name_resolution/resolver.py` - верхний роутер LDAP/Kerberos.
+- `ad_name_resolution/ldap_resolver.py` - порядок LDAP Simple Authentication.
+- `ad_name_resolution/kerberos_resolver.py` - Client Principal Lookup и Server Principal Lookup.
+- `ad_name_resolution/repository.py` - поиск объектов по полям snapshot.
+- `ad_name_resolution/cli.py` - ручной режим, меню и печать результата.
+- `ad_name_resolution/test_runner.py` - запуск JSON-тестов.
 
-`__pycache__/` и `*.pyc` не входят в проект и исключены через `.gitignore`.
+## LDAP
 
-## Модель Поиска
+Для LDAP прототип работает с полем:
 
-Полные AD-идентификаторы ищутся по всему snapshot:
+```text
+LDAPMessage -> protocolOp: bindRequest -> bindRequest -> name
+```
 
+Порядок проверок повторяет LDAP Simple Authentication:
+
+1. `distinguishedName`
+2. `userPrincipalName` / generated UPN
+3. `DOMAIN\sAMAccountName`
+4. `canonicalName`
+5. `objectGUID`
+6. `displayName`
+7. `servicePrincipalName`
+8. `MapSPN`
+9. `objectSid`
+10. `sIDHistory`
+11. `canonicalName` с заменой последнего `/` на `\n`
+
+Generated UPN проверяется после явного `userPrincipalName`. То есть сначала ищется точное значение `userPrincipalName`, а если его нет, строка вида `name@domain` может быть сопоставлена как:
+
+```text
+sAMAccountName = name
+domainFQDN = domain
+```
+
+Если одно и то же значение совпадает с явным `userPrincipalName` одного объекта и generated UPN другого, побеждает явный `userPrincipalName`.
+
+## Kerberos
+
+Для Kerberos прототип принимает поля уже разобранного principal:
+
+- `message_type`: `AS-REQ` или `TGS-REQ`;
+- `cname` для `AS-REQ`;
+- `sname` для `TGS-REQ`;
+- `name_type`;
+- `name_string[]`;
+- `realm`.
+
+Логика выбора ветки:
+
+```text
+AS-REQ  -> cname -> Client Principal Lookup
+TGS-REQ -> sname -> Server Principal Lookup
+```
+
+Внутри выбранной ветки учитывается `name_type`:
+
+- `1` - `KRB5-NT-PRINCIPAL`
+- `2` - `KRB5-NT-SRV-INST`
+- `3` - `KRB5-NT-SRV-HST`
+- `10` - `KRB5-NT-ENTERPRISE-PRINCIPAL`
+
+`realm` остается отдельным входным полем, как в Kerberos-трафике. CLI может предложить значение по умолчанию, если его можно вывести из введенного имени, но resolver получает `realm` явно.
+
+## AD Snapshot
+
+Snapshot хранится в `ad_snapshot.json`. У объекта есть основные идентификаторы, которые участвуют в проверках:
+
+- `sAMAccountName`
 - `userPrincipalName`
 - `distinguishedName`
 - `canonicalName`
+- `displayName`
 - `objectGUID`
 - `objectSid`
 - `servicePrincipalName`
 - `sIDHistory`
+- `domainFQDN`
+- `domainNetBIOS`
+- `object_type`
 
-`realm` / `domain_context` при этом не запрещает поиск в другом домене. Если есть несколько совпадений, локальный домен получает приоритет.
+В snapshot включены базовые пользователи `userA`, `userB`, сервисный объект DC, а также corner-объекты из статьи: implicit/generated UPN, explicit UPN priority, одинаковый UPN в разных доменах, DN со спецсимволами и пересечения `displayName` с другими форматами.
 
-Короткие или относительные имена используют доменный контекст:
+## Тесты
 
-- `sAMAccountName`
-- `sAMAccountName + "$"`
-- generated UPN
-- `DOMAIN\user`
+Тесты лежат в `tests.json`. Некоторые проверки используют свой `snapshot`-сценарий: это нужно потому, что corner-объекты из статьи могут намеренно менять результат другого формата. Например, пользователь с `displayName = HTTP/userA` должен проверяться отдельно от базового теста `servicePrincipalName = HTTP/userA`.
 
-`CrackNames` отдельно не реализуется: для PoC считаем, что наличие snapshot по доступным доменам заменяет отдельную попытку поиска в другом доменном контексте.
+Основные разделы тестов:
+
+- `ldap_table`
+- `ldap_algorithm`
+- `ldap_dn_special`
+- `ldap_corner`
+- `kerberos_client_lookup`
+- `kerberos_server_lookup`
 
 ## Запуск
 
-Из корня проекта:
+Интерактивный режим:
 
 ```powershell
 python run.py
 ```
 
-В меню доступны:
-
-1. Ручной ввод события.
-2. Автоматические тесты.
-3. Выход.
-
-Ручной LDAP-ввод показывает все варианты из таблицы: `distinguishedName`, `userPrincipalName`, generated UPN, `DOMAIN\user`, `canonicalName`, `objectGUID`, `displayName`, `servicePrincipalName`, MapSPN, `objectSid`, `sIDHistory`, canonicalName с LF.
-
-Ручной Kerberos-ввод работает с полями principal из трафика:
-
-- `AS-REQ / cname / Client Principal Lookup`;
-- `TGS-REQ / sname / Server Principal Lookup`;
-- `name_type`;
-- `name_string[]`;
-- `realm`.
-
-`realm` остается отдельным явным полем, как в Kerberos-трафике. Для удобства CLI может предложить default из `name_string[]`, например `userA@pastukhov.lab` -> `PASTUKHOV.LAB`, но resolver получает `realm` как обычное входное поле.
-
-## Тесты
-
-Через меню можно:
-
-- посмотреть список тестов;
-- выбрать один тест из списка по номеру;
-- запустить все тесты;
-- запустить раздел тестов.
-
-Команды для быстрой проверки:
+Все тесты:
 
 ```powershell
 python run.py --run-all
-python run.py --list-tests
-python run.py --run-category ldap_table
 ```
 
-Если категория не найдена, `--run-category` печатает ошибку и возвращает код `2`.
+Список тестов:
 
-## Результат
+```powershell
+python run.py --list-tests
+```
 
-Если объект найден, результат показывает ветку алгоритма, формат имени, поле AD и найденный объект.
+Раздел тестов:
 
-Если объект найден в домене, отличном от введенного `realm` / `domain_context`, ручной режим показывает отдельную заметку. Это ожидаемо для ITDR snapshot-модели, когда полное имя найдено в общей базе.
+```powershell
+python run.py --run-category ldap_corner
+```
 
-Если объект не найден, но формат удалось определить, результат дополнительно показывает `detected_format`. Например: формат распознан как `userPrincipalName`, но объекта в snapshot нет.
-
-Trace остается техническим пояснением для ручной проверки и failed-тестов. База и тесты пока все равно требуют ручной перепроверки по статье.
+В ручном режиме можно выбрать LDAP или Kerberos, ввести поля события и посмотреть краткий итог, JSON-результат и технический trace проверок.

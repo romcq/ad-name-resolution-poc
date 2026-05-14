@@ -25,6 +25,13 @@ class ADSnapshotRepository:
             raw = json.load(file)
         return cls(ADObject.from_dict(item) for item in raw["objects"])
 
+    def subset_by_ids(self, object_ids: Iterable[str]) -> "ADSnapshotRepository":
+        # В статье corner-кейсы проверяются как отдельные лабораторные сценарии.
+        # Например, displayName может специально совпадать со SPN, поэтому тесты
+        # запускаются на своем подмножестве объектов, а не всегда на всей базе.
+        id_set = set(object_ids)
+        return ADSnapshotRepository(obj for obj in self.objects if obj.id in id_set)
+
     def domain_matches(self, obj: ADObject, domain: str | None) -> bool:
         # domain_context/realm может прийти как DNS-имя pastukhov.lab
         # или как NetBIOS PASTUKHOV. Для PoC считаем оба варианта эквивалентными.
@@ -62,13 +69,14 @@ class ADSnapshotRepository:
         suffix: str,
         domain_context: str | None = None,
     ) -> list[ADObject]:
-        # Generated UPN: sAMAccountName@domainFQDN.
-        # В этом PoC он применим только если explicit userPrincipalName пустой.
+        # Generated/implicit UPN собирается как sAMAccountName@domainFQDN.
+        # Он проверяется только после точного поиска по userPrincipalName, поэтому
+        # явный userPrincipalName другого объекта имеет приоритет. При этом generated
+        # форма может разрешить аккаунт, у которого уже задан отдельный explicit UPN.
         candidates = [
             obj
             for obj in self.objects
-            if obj.userPrincipalName is None
-            and norm(obj.sAMAccountName) == norm(account)
+            if norm(obj.sAMAccountName) == norm(account)
             and norm(obj.domainFQDN) == norm(suffix)
         ]
         return self.prefer_domain(candidates, domain_context)

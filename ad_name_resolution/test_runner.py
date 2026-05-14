@@ -18,21 +18,32 @@ class TestCase:
     description: str
     input: dict[str, Any]
     expected: dict[str, Any]
+    snapshot_object_ids: list[str] | None = None
 
 
 def load_tests(path: str | Path) -> list[TestCase]:
     with Path(path).open("r", encoding="utf-8") as file:
         raw = json.load(file)
-    return [
-        TestCase(
-            id=item["id"],
-            category=item.get("category", "uncategorized"),
-            description=item["description"],
-            input=item["input"],
-            expected=item["expected"],
+    scenarios = raw.get("snapshot_scenarios", {})
+    cases = []
+    for item in raw["tests"]:
+        scenario_name = item.get("snapshot")
+        snapshot_object_ids = item.get("snapshot_object_ids")
+        if scenario_name:
+            if scenario_name not in scenarios:
+                raise ValueError(f"Unknown snapshot scenario for test {item['id']}: {scenario_name}")
+            snapshot_object_ids = scenarios[scenario_name]
+        cases.append(
+            TestCase(
+                id=item["id"],
+                category=item.get("category", "uncategorized"),
+                description=item["description"],
+                input=item["input"],
+                expected=item["expected"],
+                snapshot_object_ids=list(snapshot_object_ids) if snapshot_object_ids else None,
+            )
         )
-        for item in raw["tests"]
-    ]
+    return cases
 
 
 def list_tests(tests: list[TestCase]) -> None:
@@ -45,6 +56,10 @@ def run_test(
     repository: ADSnapshotRepository,
     spn_mappings: dict[str, list[str]],
 ) -> dict[str, Any]:
+    if test.snapshot_object_ids is not None:
+        # Часть кейсов статьи специально добавляет пользователей, которые перекрывают
+        # другой формат имени. Поэтому тест может запускаться на своем сценарии snapshot.
+        repository = repository.subset_by_ids(test.snapshot_object_ids)
     # Тесты не содержат отдельной логики resolution. Они просто отправляют
     # input в тот же resolver, что и ручной режим, и сравнивают selected поля.
     actual_result = resolve_event(test.input, repository, spn_mappings)

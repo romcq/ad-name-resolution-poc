@@ -1,9 +1,156 @@
 {
-  "description": "Tests limited to the article tables and agreed LDAP/Kerberos clarifications.",
+  "description": "Resolver tests based on the article tables and algorithm sections.",
+  "snapshot_scenarios": {
+    "base": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt"
+    ],
+    "dn_special": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "dnEscapedComma",
+      "dnEscapedPlus",
+      "dnEscapedQuote",
+      "dnEscapedBackslash",
+      "dnEscapedAngle",
+      "dnEscapedSemicolon",
+      "dnEscapedEquals",
+      "dnSlash",
+      "dnEscapedHash"
+    ],
+    "implicit_upn": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userImplicit"
+    ],
+    "explicit_upn_set": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userUpnSet"
+    ],
+    "explicit_vs_implicit": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userImplicitOwner",
+      "userConflict"
+    ],
+    "trust_both_domains": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userTrustPastukhov",
+      "userTrustDomain3"
+    ],
+    "display_duplicate": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userSameDisplayOne",
+      "userSameDisplayTwo"
+    ],
+    "display_sam": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplaySam"
+    ],
+    "display_upn": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplayUpn"
+    ],
+    "display_netbios": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplayNetbios"
+    ],
+    "display_dn": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplayDn"
+    ],
+    "display_canonical": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplayCanonical"
+    ],
+    "display_guid": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplayGuid"
+    ],
+    "display_spn": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplaySpn"
+    ],
+    "display_sid": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userDisplaySid"
+    ],
+    "tgs_without_spn": [
+      "userA",
+      "userB",
+      "dc01",
+      "krbtgt",
+      "userUpnSet"
+    ]
+  },
   "tests": [
+    {
+      "id": "ldap_sam_userA_not_accepted",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: plain sAMAccountName userA is not accepted as SAM",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userA"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": false,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "reason": "object_not_found",
+        "detected_format": "displayName"
+      }
+    },
     {
       "id": "ldap_upn_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: userPrincipalName userA@pastukhov.lab",
       "input": {
         "protocol": "LDAP",
@@ -26,6 +173,7 @@
     {
       "id": "ldap_upn_userB",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: userPrincipalName userB@domain3.lab",
       "input": {
         "protocol": "LDAP",
@@ -38,13 +186,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
         "matched_object_id": "userB"
       }
     },
     {
       "id": "ldap_downlevel_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: Down-Level Logon Name PASTUKHOV\\userA",
       "input": {
         "protocol": "LDAP",
@@ -57,6 +209,8 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "downLevelLogonName",
         "matched_field": "domainNetBIOS+sAMAccountName",
         "matched_object_id": "userA"
@@ -65,6 +219,7 @@
     {
       "id": "ldap_downlevel_userB",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: Down-Level Logon Name DOMAIN3\\userB",
       "input": {
         "protocol": "LDAP",
@@ -77,13 +232,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "downLevelLogonName",
+        "matched_field": "domainNetBIOS+sAMAccountName",
         "matched_object_id": "userB"
       }
     },
     {
       "id": "ldap_dn_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: distinguishedName for userA",
       "input": {
         "protocol": "LDAP",
@@ -96,14 +255,40 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
         "matched_field": "distinguishedName",
         "matched_object_id": "userA"
       }
     },
     {
+      "id": "ldap_dn_userB",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: distinguishedName for userB",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "CN=userB,CN=Users,DC=domain3,DC=lab"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
       "id": "ldap_canonical_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: canonicalName for userA",
       "input": {
         "protocol": "LDAP",
@@ -116,34 +301,40 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "canonicalName",
         "matched_field": "canonicalName",
         "matched_object_id": "userA"
       }
     },
     {
-      "id": "ldap_guid_userA",
+      "id": "ldap_canonical_userB",
       "category": "ldap_table",
-      "description": "LDAP table: objectGUID for userA",
+      "snapshot": "base",
+      "description": "LDAP table: canonicalName for userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
         "request": {
           "operation": "bindRequest",
-          "name": "{5c69b042-e0e9-475a-ae37-1751ef9e05e7}"
+          "name": "domain3.lab/Users/userB"
         },
-        "domain_context": "pastukhov.lab"
+        "domain_context": "domain3.lab"
       },
       "expected": {
         "resolved": true,
-        "matched_format": "objectGUID",
-        "matched_field": "objectGUID",
-        "matched_object_id": "userA"
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "canonicalName",
+        "matched_field": "canonicalName",
+        "matched_object_id": "userB"
       }
     },
     {
       "id": "ldap_display_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: displayName User A",
       "input": {
         "protocol": "LDAP",
@@ -156,14 +347,86 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "displayName",
         "matched_field": "displayName",
         "matched_object_id": "userA"
       }
     },
     {
+      "id": "ldap_display_userB",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: displayName UserB",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "UserB"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
+      "id": "ldap_guid_userA",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: objectGUID for userA",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "{5c69b042-e0e9-475a-ae37-1751ef9e05e7}"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "objectGUID",
+        "matched_field": "objectGUID",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_guid_userB",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: objectGUID for userB",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "{36eba909-f454-4695-918b-dcdf33b7cd88}"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "objectGUID",
+        "matched_field": "objectGUID",
+        "matched_object_id": "userB"
+      }
+    },
+    {
       "id": "ldap_spn_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: servicePrincipalName HTTP/userA",
       "input": {
         "protocol": "LDAP",
@@ -176,14 +439,40 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "servicePrincipalName",
         "matched_field": "servicePrincipalName",
         "matched_object_id": "userA"
       }
     },
     {
+      "id": "ldap_spn_userB",
+      "category": "ldap_table",
+      "snapshot": "base",
+      "description": "LDAP table: servicePrincipalName HTTP/userB",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "HTTP/userB"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "servicePrincipalName",
+        "matched_field": "servicePrincipalName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
       "id": "ldap_object_sid_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: objectSid for userA",
       "input": {
         "protocol": "LDAP",
@@ -196,34 +485,40 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "objectSid",
         "matched_field": "objectSid",
         "matched_object_id": "userA"
       }
     },
     {
-      "id": "ldap_sid_history_userA",
+      "id": "ldap_object_sid_userB",
       "category": "ldap_table",
-      "description": "LDAP table: sIDHistory for userA",
+      "snapshot": "base",
+      "description": "LDAP table: objectSid for userB",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
         "request": {
           "operation": "bindRequest",
-          "name": "S-1-5-21-2845156888-2425353457-3474467337-5114"
+          "name": "S-1-5-21-3677553567-317466416-2570716728-1106"
         },
-        "domain_context": "pastukhov.lab"
+        "domain_context": "domain3.lab"
       },
       "expected": {
         "resolved": true,
-        "matched_format": "sIDHistory",
-        "matched_field": "sIDHistory",
-        "matched_object_id": "userA"
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "objectSid",
+        "matched_field": "objectSid",
+        "matched_object_id": "userB"
       }
     },
     {
       "id": "ldap_mapspn_userA",
       "category": "ldap_table",
+      "snapshot": "base",
       "description": "LDAP table: MapSPN HOST/userA maps to HTTP/userA",
       "input": {
         "protocol": "LDAP",
@@ -236,15 +531,64 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "MapSPN",
         "matched_field": "servicePrincipalName",
         "matched_object_id": "userA"
       }
     },
     {
-      "id": "ldap_canonical_lf_userA",
+      "id": "ldap_mapspn_userB",
       "category": "ldap_table",
-      "description": "LDAP table: canonicalName with last slash replaced by LF",
+      "snapshot": "base",
+      "description": "LDAP table: MapSPN HOST/userB maps to HTTP/userB",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "HOST/userB"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "MapSPN",
+        "matched_field": "servicePrincipalName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
+      "id": "ldap_sid_history_userA",
+      "category": "ldap_algorithm",
+      "snapshot": "base",
+      "description": "LDAP algorithm: sIDHistory for userA",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "S-1-5-21-2845156888-2425353457-3474467337-5114"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "sIDHistory",
+        "matched_field": "sIDHistory",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_canonical_lf_userA",
+      "category": "ldap_algorithm",
+      "snapshot": "base",
+      "description": "LDAP algorithm: canonicalName with last slash replaced by LF",
       "input": {
         "protocol": "LDAP",
         "bind_kind": "simple",
@@ -256,91 +600,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "canonicalNameWithLF",
         "matched_field": "canonicalName",
         "matched_object_id": "userA"
       }
     },
     {
-      "id": "ldap_generated_upn",
-      "category": "ldap_corner",
-      "description": "Article corner: generated UPN when userPrincipalName is empty",
-      "input": {
-        "protocol": "LDAP",
-        "bind_kind": "simple",
-        "request": {
-          "operation": "bindRequest",
-          "name": "userImplicit@pastukhov.lab"
-        },
-        "domain_context": "pastukhov.lab"
-      },
-      "expected": {
-        "resolved": true,
-        "matched_format": "generatedUPN",
-        "matched_field": "sAMAccountName+domainFQDN",
-        "matched_object_id": "userImplicit"
-      }
-    },
-    {
-      "id": "ldap_explicit_upn_wins",
-      "category": "ldap_corner",
-      "description": "Article corner: explicit UPN wins over another object's generated UPN",
-      "input": {
-        "protocol": "LDAP",
-        "bind_kind": "simple",
-        "request": {
-          "operation": "bindRequest",
-          "name": "userImplicitOwner@pastukhov.lab"
-        },
-        "domain_context": "pastukhov.lab"
-      },
-      "expected": {
-        "resolved": true,
-        "matched_format": "userPrincipalName",
-        "matched_object_id": "userConflict"
-      }
-    },
-    {
-      "id": "ldap_generated_upn_disabled",
-      "category": "ldap_corner",
-      "description": "Article corner: generated UPN is not accepted when explicit UPN is set",
-      "input": {
-        "protocol": "LDAP",
-        "bind_kind": "simple",
-        "request": {
-          "operation": "bindRequest",
-          "name": "userUpnSet@pastukhov.lab"
-        },
-        "domain_context": "pastukhov.lab"
-      },
-      "expected": {
-        "resolved": false,
-        "detected_format": "userPrincipalName",
-        "reason": "object_not_found"
-      }
-    },
-    {
-      "id": "ldap_explicit_changed_upn",
-      "category": "ldap_corner",
-      "description": "Article corner: explicit changed UPN is accepted as a whole value",
-      "input": {
-        "protocol": "LDAP",
-        "bind_kind": "simple",
-        "request": {
-          "operation": "bindRequest",
-          "name": "userUpnSetX@pastukhov.lab"
-        },
-        "domain_context": "pastukhov.lab"
-      },
-      "expected": {
-        "resolved": true,
-        "matched_format": "userPrincipalName",
-        "matched_object_id": "userUpnSet"
-      }
-    },
-    {
       "id": "ldap_dnEscapedComma",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\,A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -353,13 +623,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedComma"
       }
     },
     {
       "id": "ldap_dnEscapedPlus",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\+A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -372,13 +646,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedPlus"
       }
     },
     {
       "id": "ldap_dnEscapedQuote",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\\"A\\\",CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -391,13 +669,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedQuote"
       }
     },
     {
       "id": "ldap_dnEscapedBackslash",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\\\A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -410,13 +692,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedBackslash"
       }
     },
     {
       "id": "ldap_dnEscapedAngle",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\<A\\>,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -429,13 +715,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedAngle"
       }
     },
     {
       "id": "ldap_dnEscapedSemicolon",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\;A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -448,13 +738,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedSemicolon"
       }
     },
     {
       "id": "ldap_dnEscapedEquals",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user\\=A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -467,13 +761,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedEquals"
       }
     },
     {
       "id": "ldap_dnSlash",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=user/A,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -486,13 +784,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnSlash"
       }
     },
     {
       "id": "ldap_dnEscapedHash",
       "category": "ldap_dn_special",
+      "snapshot": "dn_special",
       "description": "LDAP DN special-symbol table: CN=\\#userA,CN=Users,DC=pastukhov,DC=lab",
       "input": {
         "protocol": "LDAP",
@@ -505,14 +807,363 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
         "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
         "matched_object_id": "dnEscapedHash"
       }
     },
     {
-      "id": "krb_as_enterprise_upn",
-      "category": "kerberos_table",
-      "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE UPN",
+      "id": "ldap_generated_upn",
+      "category": "ldap_corner",
+      "snapshot": "implicit_upn",
+      "description": "Article corner: generated UPN when userPrincipalName is empty",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userImplicit@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "generatedUPN",
+        "matched_field": "sAMAccountName+domainFQDN",
+        "matched_object_id": "userImplicit"
+      }
+    },
+    {
+      "id": "ldap_implicit_upn_still_resolves_when_explicit_set",
+      "category": "ldap_corner",
+      "snapshot": "explicit_upn_set",
+      "description": "Article corner: implicit UPN still resolves when explicit userPrincipalName is set",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userUpnSet@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "generatedUPN",
+        "matched_field": "sAMAccountName+domainFQDN",
+        "matched_object_id": "userUpnSet"
+      }
+    },
+    {
+      "id": "ldap_explicit_changed_upn",
+      "category": "ldap_corner",
+      "snapshot": "explicit_upn_set",
+      "description": "Article corner: explicit changed UPN is accepted as a whole value",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userUpnSetX@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userUpnSet"
+      }
+    },
+    {
+      "id": "ldap_explicit_upn_wins",
+      "category": "ldap_corner",
+      "snapshot": "explicit_vs_implicit",
+      "description": "Article corner: explicit UPN wins over another object's generated UPN",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userImplicitOwner@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userConflict"
+      }
+    },
+    {
+      "id": "ldap_trust_local_pastukhov_wins",
+      "category": "ldap_corner",
+      "snapshot": "trust_both_domains",
+      "description": "Article corner: same UPN in two trusted domains, local pastukhov.lab object wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userTrust@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userTrustPastukhov"
+      }
+    },
+    {
+      "id": "ldap_trust_local_domain3_wins",
+      "category": "ldap_corner",
+      "snapshot": "trust_both_domains",
+      "description": "Article corner: same UPN in two trusted domains, local domain3.lab object wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userTrust@pastukhov.lab"
+        },
+        "domain_context": "domain3.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userTrustDomain3"
+      }
+    },
+    {
+      "id": "ldap_duplicate_display_name",
+      "category": "ldap_corner",
+      "snapshot": "display_duplicate",
+      "description": "Article corner: two users have the same displayName",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "Same Display"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": false,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "reason": "not_unique"
+      }
+    },
+    {
+      "id": "ldap_display_equals_sam",
+      "category": "ldap_corner",
+      "snapshot": "display_sam",
+      "description": "Article corner: displayName equals sAMAccountName",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userA"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "matched_object_id": "userDisplaySam"
+      }
+    },
+    {
+      "id": "ldap_display_equals_upn",
+      "category": "ldap_corner",
+      "snapshot": "display_upn",
+      "description": "Article corner: displayName equals userPrincipalName; earlier UPN wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "userA@pastukhov.lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_display_equals_downlevel",
+      "category": "ldap_corner",
+      "snapshot": "display_netbios",
+      "description": "Article corner: displayName equals DOMAIN\\user; earlier down-level name wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "PASTUKHOV\\userA"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "downLevelLogonName",
+        "matched_field": "domainNetBIOS+sAMAccountName",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_display_equals_dn",
+      "category": "ldap_corner",
+      "snapshot": "display_dn",
+      "description": "Article corner: displayName equals distinguishedName; earlier DN wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "CN=userA,CN=Users,DC=pastukhov,DC=lab"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "distinguishedName",
+        "matched_field": "distinguishedName",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_display_equals_canonical",
+      "category": "ldap_corner",
+      "snapshot": "display_canonical",
+      "description": "Article corner: displayName equals canonicalName; earlier canonicalName wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "pastukhov.lab/Users/userA"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "canonicalName",
+        "matched_field": "canonicalName",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_display_equals_guid",
+      "category": "ldap_corner",
+      "snapshot": "display_guid",
+      "description": "Article corner: displayName equals objectGUID; earlier objectGUID wins",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "{5c69b042-e0e9-475a-ae37-1751ef9e05e7}"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "objectGUID",
+        "matched_field": "objectGUID",
+        "matched_object_id": "userA"
+      }
+    },
+    {
+      "id": "ldap_display_equals_spn",
+      "category": "ldap_corner",
+      "snapshot": "display_spn",
+      "description": "Article corner: displayName equals servicePrincipalName; displayName wins because it is checked earlier",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "HTTP/userA"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "matched_object_id": "userDisplaySpn"
+      }
+    },
+    {
+      "id": "ldap_display_equals_sid",
+      "category": "ldap_corner",
+      "snapshot": "display_sid",
+      "description": "Article corner: displayName equals objectSid; displayName wins because it is checked earlier",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "S-1-5-21-2845156888-2425353457-3474467337-1114"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "matched_object_id": "userDisplaySid"
+      }
+    },
+    {
+      "id": "krb_as_enterprise_upn_userA",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
+      "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE explicit UPN",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
@@ -534,8 +1185,34 @@
       }
     },
     {
+      "id": "krb_as_enterprise_upn_userB",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
+      "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE explicit UPN in domain3",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "AS-REQ",
+        "cname": {
+          "name_type": 10,
+          "name_string": [
+            "userB@domain3.lab"
+          ]
+        },
+        "realm": "DOMAIN3.LAB"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
+        "matched_format": "NT-ENTERPRISE/userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
       "id": "krb_as_enterprise_generated_upn",
-      "category": "kerberos_corner",
+      "category": "kerberos_client_lookup",
+      "snapshot": "implicit_upn",
       "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE generated UPN",
       "input": {
         "protocol": "Kerberos",
@@ -550,14 +1227,67 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-ENTERPRISE/generatedUPN",
         "matched_field": "sAMAccountName+domainFQDN",
         "matched_object_id": "userImplicit"
       }
     },
     {
+      "id": "krb_as_enterprise_implicit_upn_with_explicit_set",
+      "category": "kerberos_client_lookup",
+      "snapshot": "explicit_upn_set",
+      "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE implicit UPN still resolves when explicit UPN is set",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "AS-REQ",
+        "cname": {
+          "name_type": 10,
+          "name_string": [
+            "userUpnSet@pastukhov.lab"
+          ]
+        },
+        "realm": "PASTUKHOV.LAB"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
+        "matched_format": "NT-ENTERPRISE/generatedUPN",
+        "matched_field": "sAMAccountName+domainFQDN",
+        "matched_object_id": "userUpnSet"
+      }
+    },
+    {
+      "id": "krb_as_enterprise_explicit_changed_upn",
+      "category": "kerberos_client_lookup",
+      "snapshot": "explicit_upn_set",
+      "description": "Kerberos AS-REQ/cname: NT-ENTERPRISE explicit changed UPN",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "AS-REQ",
+        "cname": {
+          "name_type": 10,
+          "name_string": [
+            "userUpnSetX@pastukhov.lab"
+          ]
+        },
+        "realm": "PASTUKHOV.LAB"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
+        "matched_format": "NT-ENTERPRISE/userPrincipalName",
+        "matched_field": "userPrincipalName",
+        "matched_object_id": "userUpnSet"
+      }
+    },
+    {
       "id": "krb_as_enterprise_explicit_wins",
-      "category": "kerberos_corner",
+      "category": "kerberos_client_lookup",
+      "snapshot": "explicit_vs_implicit",
       "description": "Kerberos AS-REQ/cname: explicit UPN wins over generated UPN",
       "input": {
         "protocol": "Kerberos",
@@ -572,13 +1302,17 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-ENTERPRISE/userPrincipalName",
+        "matched_field": "userPrincipalName",
         "matched_object_id": "userConflict"
       }
     },
     {
-      "id": "krb_as_principal_sam",
-      "category": "kerberos_table",
+      "id": "krb_as_principal_sam_userA",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
       "description": "Kerberos AS-REQ/cname: NT-PRINCIPAL sAMAccountName",
       "input": {
         "protocol": "Kerberos",
@@ -593,14 +1327,42 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-PRINCIPAL/sAMAccountName",
         "matched_field": "sAMAccountName",
         "matched_object_id": "userA"
       }
     },
     {
+      "id": "krb_as_principal_sam_userB",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
+      "description": "Kerberos AS-REQ/cname: NT-PRINCIPAL sAMAccountName in domain3",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "AS-REQ",
+        "cname": {
+          "name_type": 1,
+          "name_string": [
+            "userB"
+          ]
+        },
+        "realm": "DOMAIN3.LAB"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
+        "matched_format": "NT-PRINCIPAL/sAMAccountName",
+        "matched_field": "sAMAccountName",
+        "matched_object_id": "userB"
+      }
+    },
+    {
       "id": "krb_as_principal_sam_dollar",
-      "category": "kerberos_table",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
       "description": "Kerberos AS-REQ/cname: NT-PRINCIPAL sAMAccountName + $",
       "input": {
         "protocol": "Kerberos",
@@ -615,6 +1377,8 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-PRINCIPAL/sAMAccountName+$",
         "matched_field": "sAMAccountName",
         "matched_object_id": "dc01"
@@ -622,7 +1386,8 @@
     },
     {
       "id": "krb_as_principal_upn_fallback",
-      "category": "kerberos_corner",
+      "category": "kerberos_client_lookup",
+      "snapshot": "explicit_upn_set",
       "description": "Kerberos AS-REQ/cname: NT-PRINCIPAL UPN variant fallback",
       "input": {
         "protocol": "Kerberos",
@@ -637,14 +1402,41 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-PRINCIPAL/userPrincipalName",
         "matched_field": "userPrincipalName",
         "matched_object_id": "userUpnSet"
       }
     },
     {
+      "id": "krb_as_dn_not_accepted",
+      "category": "kerberos_client_lookup",
+      "snapshot": "base",
+      "description": "Kerberos table: distinguishedName is not a client principal format",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "AS-REQ",
+        "cname": {
+          "name_type": 10,
+          "name_string": [
+            "CN=userA,CN=Users,DC=pastukhov,DC=lab"
+          ]
+        },
+        "realm": "PASTUKHOV.LAB"
+      },
+      "expected": {
+        "resolved": false,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Client Principal Lookup",
+        "detected_format": "NT-ENTERPRISE",
+        "reason": "object_not_found"
+      }
+    },
+    {
       "id": "krb_tgs_srv_inst_userprincipalname_not_found",
-      "category": "kerberos_table",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
       "description": "Kerberos TGS-REQ/sname: NT-SRV-INST checks service string through userPrincipalName",
       "input": {
         "protocol": "Kerberos",
@@ -660,14 +1452,16 @@
       },
       "expected": {
         "resolved": false,
+        "protocol": "Kerberos",
         "algorithm_branch": "Server Principal Lookup",
-        "detected_format": "NT-SRV-INST/userPrincipalName",
-        "reason": "object_not_found"
+        "reason": "object_not_found",
+        "detected_format": "NT-SRV-INST/userPrincipalName"
       }
     },
     {
       "id": "krb_tgs_krbtgt_special_case",
-      "category": "kerberos_corner",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
       "description": "Kerberos TGS-REQ/sname: krbtgt special case uses second component as sAMAccountName",
       "input": {
         "protocol": "Kerberos",
@@ -683,6 +1477,8 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Server Principal Lookup",
         "matched_format": "NT-SRV-INST/krbtgt/sAMAccountName",
         "matched_field": "sAMAccountName",
         "matched_object_id": "krbtgt"
@@ -690,7 +1486,8 @@
     },
     {
       "id": "krb_tgs_srv_inst_sam_dollar",
-      "category": "kerberos_table",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
       "description": "Kerberos TGS-REQ/sname: one-component service falls back to sAMAccountName + $",
       "input": {
         "protocol": "Kerberos",
@@ -705,6 +1502,8 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Server Principal Lookup",
         "matched_format": "NT-SRV-INST/sAMAccountName+$",
         "matched_field": "sAMAccountName",
         "matched_object_id": "dc01"
@@ -712,7 +1511,8 @@
     },
     {
       "id": "krb_tgs_enterprise_spn_dc",
-      "category": "kerberos_table",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
       "description": "Kerberos TGS-REQ/sname: NT-ENTERPRISE servicePrincipalName for DC",
       "input": {
         "protocol": "Kerberos",
@@ -727,6 +1527,8 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Server Principal Lookup",
         "matched_format": "NT-ENTERPRISE/servicePrincipalName",
         "matched_field": "servicePrincipalName",
         "matched_object_id": "dc01"
@@ -734,7 +1536,8 @@
     },
     {
       "id": "krb_tgs_enterprise_spn_userA",
-      "category": "kerberos_table",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
       "description": "Kerberos TGS-REQ/sname: NT-ENTERPRISE servicePrincipalName for userA",
       "input": {
         "protocol": "Kerberos",
@@ -749,14 +1552,42 @@
       },
       "expected": {
         "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Server Principal Lookup",
         "matched_format": "NT-ENTERPRISE/servicePrincipalName",
         "matched_field": "servicePrincipalName",
         "matched_object_id": "userA"
       }
     },
     {
+      "id": "krb_tgs_enterprise_sam_with_spn",
+      "category": "kerberos_server_lookup",
+      "snapshot": "base",
+      "description": "Kerberos TGS-REQ/sname: NT-ENTERPRISE sAMAccountName fallback succeeds when account has SPN",
+      "input": {
+        "protocol": "Kerberos",
+        "message_type": "TGS-REQ",
+        "sname": {
+          "name_type": 10,
+          "name_string": [
+            "userA"
+          ]
+        },
+        "realm": "PASTUKHOV.LAB"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "Kerberos",
+        "algorithm_branch": "Server Principal Lookup",
+        "matched_format": "NT-ENTERPRISE/sAMAccountName",
+        "matched_field": "sAMAccountName",
+        "matched_object_id": "userA"
+      }
+    },
+    {
       "id": "krb_tgs_enterprise_fallback_without_spn_fails",
-      "category": "kerberos_corner",
+      "category": "kerberos_server_lookup",
+      "snapshot": "tgs_without_spn",
       "description": "Kerberos TGS-REQ/sname: NT-ENTERPRISE sAMAccountName fallback fails without registered SPN",
       "input": {
         "protocol": "Kerberos",
@@ -764,41 +1595,17 @@
         "sname": {
           "name_type": 10,
           "name_string": [
-            "userImplicit"
+            "userUpnSet"
           ]
         },
         "realm": "PASTUKHOV.LAB"
       },
       "expected": {
         "resolved": false,
-        "algorithm_branch": "Server Principal Lookup",
-        "detected_format": "NT-ENTERPRISE/sAMAccountName",
-        "reason": "object_not_found"
-      }
-    },
-    {
-      "id": "krb_as_cracknames_not_implemented",
-      "category": "kerberos_limitations",
-      "description": "Kerberos AS-REQ/cname: direct checks fail, CrackNames remains out of scope",
-      "input": {
         "protocol": "Kerberos",
-        "message_type": "AS-REQ",
-        "cname": {
-          "name_type": 10,
-          "name_string": [
-            "unknown@pastukhov.lab"
-          ]
-        },
-        "realm": "PASTUKHOV.LAB"
-      },
-      "expected": {
-        "resolved": false,
-        "algorithm_branch": "Client Principal Lookup",
-        "detected_format": "NT-ENTERPRISE/userPrincipalName",
+        "algorithm_branch": "Server Principal Lookup",
         "reason": "object_not_found",
-        "unimplemented_steps": [
-          "CrackNames"
-        ]
+        "detected_format": "NT-ENTERPRISE/sAMAccountName"
       }
     }
   ]

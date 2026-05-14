@@ -128,8 +128,9 @@ def _resolve_as_nt_enterprise(
     if len(components) != 1:
         return unsupported_result(protocol="Kerberos", algorithm_branch=CLIENT_BRANCH, input_field="cname", input_value=input_value, reason="unsupported_principal_shape", trace=trace)
     value = components[0]
-    # AS NT-ENTERPRISE step 1-2: явный UPN, затем generated UPN.
-    # Custom UPN suffix допускается: строка ищется как целый userPrincipalName.
+    # AS NT-ENTERPRISE step 1-2: сначала explicit UPN, затем generated/implicit UPN.
+    # Custom UPN suffix допустим: полная строка сначала ищется как userPrincipalName,
+    # и только потом resolver переходит к смыслу sAMAccountName@domainFQDN.
     result = _match_upn_variant("Kerberos", CLIENT_BRANCH, "cname", input_value, "NT-ENTERPRISE", value, repository, realm, trace)
     if result is not None:
         return result
@@ -304,7 +305,9 @@ def _match_upn_variant(
     if explicit is not None:
         return explicit
     account, suffix = parts
-    # generated UPN работает только для объектов без explicit userPrincipalName.
+    # Generated/implicit UPN проверяется после explicit UPN. Так сохраняется приоритет AD:
+    # явный userPrincipalName выигрывает у generated-формы другого аккаунта, но
+    # sAMAccountName@domainFQDN все еще может разрешить аккаунт с отдельным explicit UPN.
     generated_matches = repository.find_generated_upn(account, suffix, domain_context)
     trace.append({"branch": branch, "step": f"{format_prefix}/generatedUPN", "syntax_match": True, "lookup_field": "sAMAccountName+domainFQDN", "lookup_value": value, "matched_count": len(generated_matches)})
     return _resolve_matches(protocol, branch, input_field, input_value, f"{format_prefix}/generatedUPN", "sAMAccountName+domainFQDN", value, generated_matches, trace)
