@@ -56,6 +56,61 @@ TGS-REQ -> sname -> Server Principal Lookup
 
 `realm` оставлен отдельным полем, как в реальном Kerberos-трафике. CLI может подсказать значение по имени, но в сам resolver `realm` передается отдельно.
 
+### Общая логика Kerberos-разбора
+
+1. Сначала смотрим `message_type`.
+2. Если это `AS-REQ`, берем `cname` и идем в `Client Principal Lookup`.
+3. Если это `TGS-REQ`, берем `sname` и идем в `Server Principal Lookup`.
+4. Из выбранного principal берутся `name_type`, `name_string[]` и отдельное поле `realm`.
+5. Дальше resolver выбирает ветку по `name_type` и проверяет значения по локальному AD snapshot.
+
+Если тип сообщения, `name_type` или форма `name_string[]` не поддержаны, результат будет `unsupported` или `invalid_input`. Если формат понятен, но объект не найден, возвращается `object_not_found`.
+
+### AS-REQ / Client Principal Lookup
+
+`AS-REQ` используется для поиска клиентского объекта. В прототипе берется `cname`.
+
+Для `KRB5-NT-ENTERPRISE-PRINCIPAL` / `name_type = 10`:
+
+1. Ожидается один элемент в `cname.name_string[]`, например `userA@pastukhov.lab`.
+2. Строка сначала ищется как точный `userPrincipalName`.
+3. Если точного UPN нет, строка проверяется как generated UPN: `sAMAccountName@domainFQDN`.
+4. Если suffix совпадает с доменом из `realm`, левая часть дополнительно проверяется как `sAMAccountName`.
+5. Если не найдено, пробуется машинный вариант `sAMAccountName + "$"`.
+6. `CrackNames` в прототипе не реализован: продукт работает по локальному AD snapshot и уже проверяет доступные идентификаторы напрямую.
+
+Для `KRB5-NT-PRINCIPAL` / `name_type = 1`:
+
+1. Ожидается один элемент в `cname.name_string[]`, например `userA`.
+2. Имя ищется как `sAMAccountName` в контексте `realm`.
+3. Если не найдено, пробуется `sAMAccountName + "$"`.
+4. Если известен домен из `realm`, формируется UPN-вариант `account@domainFQDN` и проверяется как `userPrincipalName` / generated UPN.
+5. Если внутри `NT-PRINCIPAL` пришла строка вида `DOMAIN\user`, домен используется как контекст, а дальше проверяется только account name.
+6. `CrackNames` также остается за пределами прототипа.
+
+### TGS-REQ / Server Principal Lookup
+
+`TGS-REQ` используется для поиска сервисного или компьютерного объекта. В прототипе берется `sname`.
+
+Для `KRB5-NT-PRINCIPAL` / `name_type = 1`, `KRB5-NT-SRV-INST` / `name_type = 2` и `KRB5-NT-SRV-HST` / `name_type = 3`:
+
+1. Компоненты `sname.name_string[]` собираются в строку через `/`.
+2. Отдельно обрабатывается случай `krbtgt/krbtgt`: второй компонент проверяется как `sAMAccountName` в контексте `realm`.
+3. Service-string проверяется как `userPrincipalName`.
+4. Если `sname.name_string[]` содержит один элемент, он дополнительно проверяется как `sAMAccountName`.
+5. Если не найдено, пробуется `sAMAccountName + "$"`.
+6. Если совпадений нет, возвращается `object_not_found`.
+
+Для `KRB5-NT-ENTERPRISE-PRINCIPAL` / `name_type = 10` в `TGS-REQ`:
+
+1. Ожидается один элемент в `sname.name_string[]`, например `HTTP/userA` или `cifs/10-23-RP-DC-01.pastukhov.lab`.
+2. Строка сначала ищется как `servicePrincipalName`.
+3. Если SPN не найден, строка пробуется как `sAMAccountName`.
+4. Затем пробуется `sAMAccountName + "$"`.
+5. Для fallback по account name дополнительно проверяется, что у найденного объекта есть хотя бы один зарегистрированный SPN. Без этого объект не считается подходящим server principal.
+
+Общее правило для всех Kerberos-веток: если на конкретном шаге найден ровно один объект, resolver возвращает `found`. Если найдено несколько объектов, возвращается `not_unique` без публикации candidate ids в стабильном JSON-результате. Если шаг дал 0 совпадений, resolver переходит к следующему применимому шагу.
+
 ## Объекты в базе
 
 Все тесты используют одну базу `ad_snapshot.json`. Для корнеров добавлены отдельные объекты, чтобы не менять базовые проверки `userA` и `userB`.
