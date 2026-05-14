@@ -16,6 +16,27 @@
 - `ad_name_resolution/cli.py` - ручной режим, меню и вывод результата.
 - `ad_name_resolution/test_runner.py` - запуск тестов из JSON.
 
+## Схема прототипа
+
+```mermaid
+flowchart TD
+    A["run.py / CLI"] --> B{"Режим запуска"}
+    B --> C["Ручной ввод события"]
+    B --> D["tests.json"]
+    D --> E["test_runner.py"]
+    C --> F["resolve_event()"]
+    E --> F
+    F --> G{"protocol"}
+    G --> H["ldap_resolver.py<br/>LDAP BindRequest.name"]
+    G --> I["kerberos_resolver.py<br/>message_type + principal"]
+    H --> J["repository.py<br/>поиск в ad_snapshot.json"]
+    I --> J
+    J --> K["ResolutionResult<br/>формат + объект/причина + trace"]
+    K --> L["CLI / JSON вывод"]
+```
+
+Коротко: CLI или тесты формируют уже разобранное событие, `resolve_event()` выбирает LDAP/Kerberos-ветку, resolver проверяет имя по алгоритму и ходит в локальный AD snapshot через repository. На выходе получается единый `ResolutionResult` с найденным форматом, объектом или причиной ошибки.
+
 ## Как идет LDAP-проверка
 
 Для LDAP используется поле `LDAPMessage -> protocolOp: bindRequest -> bindRequest -> name`.
@@ -35,6 +56,12 @@
 11. `canonicalName` с заменой последнего `/` на `\n`
 
 Generated UPN проверяется после явного `userPrincipalName`. Сначала ищется точное значение `userPrincipalName`; если оно не найдено, строка вида `name@domain` может быть сопоставлена как `sAMAccountName=name` и `domainFQDN=domain`.
+
+### Схема LDAP-проверки
+
+Эта схема соответствует текущему LDAP-порядку: берется строка с именем, последовательно проверяются форматы из списка, при первом успешном совпадении возвращается найденный объект, иначе resolver переходит к следующему формату.
+
+![Схема LDAP-проверки форматов имени](docs/images/ldap-resolution-flow.png)
 
 ## Как идет Kerberos-проверка
 
