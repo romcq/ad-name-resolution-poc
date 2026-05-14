@@ -28,8 +28,7 @@
         "S-1-5-21-2845156888-2425353457-3474467337-5114"
       ],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "??????? ???????????? pastukhov.lab ??? ??????? ???????? LDAP/Kerberos."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userB",
@@ -48,8 +47,7 @@
         "S-1-5-21-3677553567-317466416-2570716728-5106"
       ],
       "domainFQDN": "domain3.lab",
-      "domainNetBIOS": "DOMAIN3",
-      "purpose": "??????? ???????????? domain3.lab ??? ???????? ??????? ??????."
+      "domainNetBIOS": "DOMAIN3"
     },
     {
       "id": "dc01",
@@ -67,8 +65,7 @@
       ],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "????????????/????????? ?????? ??? SPN ? Kerberos TGS-REQ."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "krbtgt",
@@ -83,8 +80,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "????????? ?????? ??? ???????????? ?????? krbtgt ? Server Principal Lookup."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userImplicit",
@@ -99,8 +95,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: userPrincipalName ?? ?????, ??????????? generated UPN."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userUpnSet",
@@ -115,8 +110,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: explicit UPN ?????????? ?? generated UPN."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userImplicitOwner",
@@ -131,8 +125,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: ???????? generated UPN, ??????? ???????????? ? explicit UPN ??????? ???????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userConflict",
@@ -147,8 +140,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: explicit UPN ????????? ? generated UPN userImplicitOwner ? ?????? ????? ?????????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userTrustPastukhov",
@@ -163,8 +155,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: ?????????? UPN ? ???? ???????, ????????? pastukhov.lab."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userTrustDomain3",
@@ -179,8 +170,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "domain3.lab",
-      "domainNetBIOS": "DOMAIN3",
-      "purpose": "Corner: ?????????? UPN ? ???? ???????, ????????? domain3.lab."
+      "domainNetBIOS": "DOMAIN3"
     },
     {
       "id": "dnEscapedComma",
@@ -195,8 +185,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ?? ???????????? ???????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedPlus",
@@ -211,8 +200,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ?? ???????????? ????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedQuote",
@@ -227,8 +215,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ? ?????????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedBackslash",
@@ -243,8 +230,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ? ???????? ??????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedAngle",
@@ -259,8 +245,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ? ???????? ????????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedSemicolon",
@@ -275,8 +260,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ? ?????? ? ???????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedEquals",
@@ -291,8 +275,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ?? ?????? ?????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnSlash",
@@ -307,8 +290,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ?? ??????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "dnEscapedHash",
@@ -323,8 +305,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "DN ? # ? ?????? ????????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerSamTarget",
@@ -339,8 +320,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = sAMAccountName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerUpnTarget",
@@ -355,8 +335,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = userPrincipalName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerDownlevelTarget",
@@ -371,8 +350,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = DOMAIN\\user."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerDnTarget",
@@ -387,8 +365,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = distinguishedName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerCanonicalTarget",
@@ -403,8 +380,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = canonicalName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerGuidTarget",
@@ -419,8 +395,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = objectGUID."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerSpnTarget",
@@ -437,8 +412,7 @@
       ],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = servicePrincipalName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "cornerSidTarget",
@@ -453,8 +427,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "???? ??? ????? displayName = objectSid."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplaySam",
@@ -469,8 +442,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? sAMAccountName ??????? ???????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplayUpn",
@@ -485,8 +457,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? userPrincipalName ??????? ???????."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplayNetbios",
@@ -501,8 +472,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? down-level logon name."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplayDn",
@@ -517,8 +487,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? distinguishedName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplayCanonical",
@@ -533,8 +502,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? canonicalName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplayGuid",
@@ -549,8 +517,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? objectGUID."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplaySpn",
@@ -565,8 +532,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? servicePrincipalName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userDisplaySid",
@@ -581,8 +547,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: displayName ????????? ? objectSid."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userSameDisplayOne",
@@ -597,8 +562,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: ?????? ???????????? ? ?????????? displayName."
+      "domainNetBIOS": "PASTUKHOV"
     },
     {
       "id": "userSameDisplayTwo",
@@ -613,8 +577,7 @@
       "servicePrincipalName": [],
       "sIDHistory": [],
       "domainFQDN": "pastukhov.lab",
-      "domainNetBIOS": "PASTUKHOV",
-      "purpose": "Corner: ?????? ???????????? ? ?????????? displayName."
+      "domainNetBIOS": "PASTUKHOV"
     }
   ]
 }
