@@ -1,4 +1,4 @@
-"""Result and AD object models shared by all resolver branches."""
+"""Общие модели результата и AD-объекта для всех веток resolver."""
 
 from __future__ import annotations
 

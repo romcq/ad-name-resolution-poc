@@ -1,4 +1,4 @@
-"""Small parsing helpers used by LDAP and Kerberos resolver steps."""
+"""Небольшие функции разбора, которые используют LDAP и Kerberos resolver."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def split_upn(value: str) -> tuple[str, str] | None:
 
 
 def split_downlevel(value: str) -> tuple[str, str] | None:
-    # Down-level logon name: DOMAIN\account.
+    # Формат Down-Level Logon Name выглядит как DOMAIN\account.
     if value.count("\\") != 1:
         return None
     domain, account = value.split("\\", 1)

@@ -1,4 +1,4 @@
-"""Repository-style lookup helpers over the local JSON AD snapshot.
+"""Repository-слой для поиска по локальному JSON AD snapshot.
 
 Resolver-файлы не должны знать, как именно устроен JSON. Они спрашивают
 repository: "найди по UPN", "найди по SID", "найди по SPN". Так алгоритм

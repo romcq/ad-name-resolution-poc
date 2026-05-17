@@ -24,6 +24,6 @@ def resolve_event(
         return resolve_ldap_simple_bind(event, repository, spn_mappings)
     if protocol == "kerberos":
         # Для Kerberos событие уже должно содержать message_type и principal:
-        # AS-REQ -> cname, TGS-REQ -> sname.
+        # Для AS-REQ используем cname, для TGS-REQ используем sname.
         return resolve_kerberos(event, repository)
     return invalid_input_result("unsupported_protocol")

@@ -1,4 +1,4 @@
-"""Kerberos principal resolver over already parsed AS-REQ/TGS-REQ fields.
+"""Резолвер Kerberos principal поверх уже разобранных полей AS-REQ/TGS-REQ.
 
 В этом файле нет парсинга ASN.1/pcap. На вход уже приходит структура, похожая
 на то, что дал бы parser трафика: message_type, realm и cname/sname principal.

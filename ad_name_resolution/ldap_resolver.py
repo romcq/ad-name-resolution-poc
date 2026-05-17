@@ -1,4 +1,4 @@
-"""LDAP Simple Bind resolver.
+"""Резолвер LDAP Simple Bind.
 
 Здесь реализован порядок LDAP-проверок из статьи. Важный момент: это именно
 последовательный алгоритм. Если строка похожа сразу на несколько форматов,
@@ -129,8 +129,8 @@ def _trace(trace: list[dict], **item) -> None:
 
 
 def _first_detected_ldap_format(trace: list[dict]) -> str | None:
-    # For a not-found result we still want to tell the operator which input
-    # format was recognized syntactically before the AD lookup returned zero.
+    # Для not_found все равно показываем оператору, какой формат входной строки
+    # был синтаксически распознан до того, как поиск по AD snapshot дал 0 совпадений.
     for item in trace:
         if item.get("syntax_match") is True:
             return item.get("step")
