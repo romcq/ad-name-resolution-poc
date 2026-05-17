@@ -15,6 +15,7 @@
 - `ad_name_resolution/repository.py` - функции поиска по локальному снимку AD.
 - `ad_name_resolution/cli.py` - ручной режим, меню и вывод результата.
 - `ad_name_resolution/test_runner.py` - запуск тестов из JSON.
+- `docs/manual-verification-guide.md` - шпаргалка по ручной проверке, сравнению с `itdr_develop` и Kerberos-преобразованиям.
 
 ## Схема прототипа
 
