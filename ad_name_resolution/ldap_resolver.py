@@ -53,6 +53,12 @@ def resolve_ldap_simple_bind(
     # 1. подходит ли строка синтаксически под формат;
     # 2. сколько объектов найдено в snapshot;
     # 3. можно ли вернуть результат или нужно идти дальше.
+    #
+    # Формат определяется не "угадыванием пользователя", а простыми признаками строки:
+    # DN содержит RDN-компоненты с "=" и разделителями ","; UPN-like строка имеет ровно один "@";
+    # down-level имя имеет ровно один "\"; canonicalName содержит DNS-домен и "/";
+    # GUID/SID проверяются регулярными выражениями; SPN тоже содержит "/", но не выглядит как canonicalName;
+    # displayName отдельного синтаксиса не имеет, поэтому проверяется просто как строковое поле и не стоит первым.
     ordered_steps: list[Callable[[], ResolutionResult | None]] = [
         lambda: match_distinguished_name(name, repository, trace),
         lambda: match_upn_or_generated_upn(name, repository, domain_context, trace),
@@ -139,7 +145,8 @@ def _first_detected_ldap_format(trace: list[dict]) -> str | None:
 
 def match_distinguished_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
     # LDAP step 1: distinguishedName. Проверяется первым, поэтому DN выигрывает
-    # даже если такая же строка где-то записана как displayName.
+    # даже если такая же строка где-то записана как displayName. Признак DN:
+    # RDN-компоненты вида CN=..., OU=..., DC=...; запятая внутри значения может быть escaped.
     if not looks_like_dn(name):
         _trace(trace, step="distinguishedName", syntax_match=False)
         return None
@@ -155,6 +162,7 @@ def match_upn_or_generated_upn(
     trace: list[dict],
 ) -> ResolutionResult | None:
     # LDAP step 2: UPN-like строка. Сначала AD проверяет явный userPrincipalName.
+    # Признак UPN-like формата: ровно один "@", непустая левая часть и непустой suffix.
     # Если он не найден, то та же строка может разрешиться как generated/implicit UPN:
     # sAMAccountName@domainFQDN. Так как этот шаг идет после явного UPN, explicit
     # userPrincipalName имеет приоритет над generated UPN другого объекта.
@@ -175,7 +183,7 @@ def match_upn_or_generated_upn(
 
 def match_down_level_logon_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
     # LDAP step 3: DOMAIN\account. DOMAIN сравнивается с domainNetBIOS,
-    # account сравнивается с sAMAccountName.
+    # account сравнивается с sAMAccountName. Признак формата: ровно один "\".
     parts = split_downlevel(name)
     if parts is None:
         _trace(trace, step="downLevelLogonName", syntax_match=False)
@@ -188,6 +196,7 @@ def match_down_level_logon_name(name: str, repository: ADSnapshotRepository, tra
 
 def match_canonical_name(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
     # LDAP step 4: canonicalName вида domain.tld/OU/name.
+    # Признак формата: слева DNS-домен с точкой, дальше путь через "/", без перевода строки.
     if not looks_like_canonical(name):
         _trace(trace, step="canonicalName", syntax_match=False)
         return None
@@ -197,7 +206,8 @@ def match_canonical_name(name: str, repository: ADSnapshotRepository, trace: lis
 
 
 def match_object_guid(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
-    # LDAP step 5: objectGUID. Скобки вокруг GUID допускаются.
+    # LDAP step 5: objectGUID. Признак формата: GUID по шаблону UUID;
+    # фигурные скобки вокруг GUID допускаются.
     if not is_guid(name):
         _trace(trace, step="objectGUID", syntax_match=False)
         return None
@@ -214,6 +224,7 @@ def match_display_name(
 ) -> ResolutionResult | None:
     # LDAP step 6: displayName проверяется поздно. Поэтому UPN/DN/canonicalName
     # выигрывают у displayName, но displayName все еще выигрывает у SPN/SID.
+    # У displayName нет надежного спецсимвола или отдельного синтаксиса: это просто строка.
     matches = repository.find_display_name(name, domain_context)
     _trace(trace, step="displayName", syntax_match=True, lookup_field="displayName", lookup_value=name, matched_count=len(matches))
     return _resolve_matches(input_value=name, matched_format="displayName", matched_field="displayName", matched_value=name, matches=matches, trace=trace)
@@ -226,6 +237,7 @@ def match_service_principal_name(
     trace: list[dict],
 ) -> ResolutionResult | None:
     # LDAP step 7: прямой поиск по servicePrincipalName.
+    # Признак SPN: строка содержит "/", но не похожа на canonicalName domain.tld/path.
     if not looks_like_spn(name):
         _trace(trace, step="servicePrincipalName", syntax_match=False)
         return None
@@ -243,6 +255,7 @@ def match_map_spn(
 ) -> ResolutionResult | None:
     # LDAP step 8: упрощенный MapSPN. В реальном AD это богаче, здесь же
     # используется локальный словарь spn_mappings из ad_snapshot.json.
+    # Синтаксический признак такой же, как у SPN: service/instance.
     if not looks_like_spn(name):
         _trace(trace, step="MapSPN", syntax_match=False)
         return None
@@ -255,7 +268,7 @@ def match_map_spn(
 
 
 def match_object_sid(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
-    # LDAP step 9: текущий objectSid объекта.
+    # LDAP step 9: текущий objectSid объекта. Признак формата: строка SID вида S-1-...
     if not is_sid(name):
         _trace(trace, step="objectSid", syntax_match=False)
         return None
@@ -265,7 +278,8 @@ def match_object_sid(name: str, repository: ADSnapshotRepository, trace: list[di
 
 
 def match_sid_history(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
-    # LDAP step 10: исторические SID из sIDHistory.
+    # LDAP step 10: исторические SID из sIDHistory. Синтаксический признак тот же,
+    # что и у objectSid; отличается только поле поиска в snapshot.
     if not is_sid(name):
         _trace(trace, step="sIDHistory", syntax_match=False)
         return None
@@ -276,6 +290,7 @@ def match_sid_history(name: str, repository: ADSnapshotRepository, trace: list[d
 
 def match_canonical_name_lf(name: str, repository: ADSnapshotRepository, trace: list[dict]) -> ResolutionResult | None:
     # LDAP step 11: вариант canonicalName, где последний "/" представлен как LF.
+    # Признак формата: DNS-домен в начале и перевод строки вместо последнего разделителя пути.
     if not looks_like_canonical_lf(name):
         _trace(trace, step="canonicalNameWithLF", syntax_match=False)
         return None

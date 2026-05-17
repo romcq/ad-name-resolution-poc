@@ -16,6 +16,8 @@
 - `ad_name_resolution/cli.py` - ручной режим, меню и вывод результата.
 - `ad_name_resolution/test_runner.py` - запуск тестов из JSON.
 
+Общий роутер - это небольшой слой, который сам ничего не ищет в базе. Он смотрит на поле `protocol` во входном событии и передает событие в нужный resolver: LDAP-событие уходит в `ldap_resolver.py`, Kerberos-событие уходит в `kerberos_resolver.py`.
+
 ## Схема прототипа
 
 ```mermaid
@@ -81,15 +83,16 @@ TGS-REQ -> sname -> Server Principal Lookup
 - `3` - `KRB5-NT-SRV-HST`
 - `10` - `KRB5-NT-ENTERPRISE-PRINCIPAL`
 
-`realm` оставлен отдельным полем, как в реальном Kerberos-трафике. CLI может подсказать значение по имени, но в сам resolver `realm` передается отдельно.
+`realm` оставлен отдельным полем, как в реальном Kerberos-трафике. CLI может подсказать значение по имени, но в сам resolver `realm` передается отдельно. Это важно: resolver не должен "угадывать" realm из строки имени, потому что в реальном Kerberos-событии realm уже приходит отдельным полем и задает доменный контекст поиска.
 
 ### Общая логика Kerberos-разбора
 
 1. Сначала смотрим `message_type`.
 2. Если это `AS-REQ`, берем `cname` и идем в `Client Principal Lookup`.
 3. Если это `TGS-REQ`, берем `sname` и идем в `Server Principal Lookup`.
-4. Из выбранного principal берутся `name_type`, `name_string[]` и отдельное поле `realm`.
-5. Дальше resolver выбирает ветку по `name_type` и проверяет значения по локальному AD snapshot.
+4. Из выбранного principal берутся `name_type` и `name_string[]`, а `realm` читается отдельно из события.
+5. `realm` используется как контекст домена: например, чтобы понять, в каком домене искать `sAMAccountName`, машинный аккаунт с `$` или специальный объект `krbtgt`.
+6. Дальше resolver выбирает ветку по `name_type` и проверяет значения по локальному AD snapshot.
 
 Если тип сообщения, `name_type` или форма `name_string[]` не поддержаны, результат будет `unsupported` или `invalid_input`. Если формат понятен, но объект не найден, возвращается `object_not_found`.
 
@@ -122,7 +125,7 @@ TGS-REQ -> sname -> Server Principal Lookup
 Для `KRB5-NT-PRINCIPAL` / `name_type = 1`, `KRB5-NT-SRV-INST` / `name_type = 2` и `KRB5-NT-SRV-HST` / `name_type = 3`:
 
 1. Компоненты `sname.name_string[]` собираются в строку через `/`.
-2. Отдельно обрабатывается случай `krbtgt/krbtgt`: второй компонент проверяется как `sAMAccountName` в контексте `realm`.
+2. Отдельно обрабатывается случай `krbtgt/krbtgt`: для такого service principal берется второй компонент `krbtgt` и ищется объект с `sAMAccountName=krbtgt` в домене, который задан через `realm`.
 3. Service-string проверяется как `userPrincipalName`.
 4. Если `sname.name_string[]` содержит один элемент, он дополнительно проверяется как `sAMAccountName`.
 5. Если не найдено, пробуется `sAMAccountName + "$"`.
@@ -142,45 +145,45 @@ TGS-REQ -> sname -> Server Principal Lookup
 
 Все тесты используют одну базу `ad_snapshot.json`. Для корнеров добавлены отдельные объекты, чтобы не менять базовые проверки `userA` и `userB`.
 
-| id | Тип | Домен | sAMAccountName | Ключевые поля | Зачем нужен |
-|---|---|---|---|---|---|
-| userA | пользователь | pastukhov.lab | userA | UPN=userA@pastukhov.lab; SPN=HTTP/userA; sIDHistory=S-1-5-21-2845156888-2425353457-3474467337-5114; displayName=User A | Базовый пользователь домена pastukhov.lab для проверок LDAP и Kerberos. |
-| userB | пользователь | domain3.lab | userB | UPN=userB@domain3.lab; SPN=HTTP/userB; sIDHistory=S-1-5-21-3677553567-317466416-2570716728-5106; displayName=UserB | Базовый пользователь домена domain3.lab для проверок второго домена. |
-| dc01 | компьютер | pastukhov.lab | 10-23-RP-DC-01$ | SPN=cifs/10-23-RP-DC-01.pastukhov.lab, HOST/10-23-RP-DC-01.pastukhov.lab; displayName=10-23-RP-DC-01 | Компьютерный/сервисный объект для SPN и Kerberos TGS-REQ. |
-| krbtgt | сервис | pastukhov.lab | krbtgt | - | Сервисный объект для отдельного случая krbtgt. |
-| userImplicit | пользователь | pastukhov.lab | userImplicit | - | Проверка generated UPN: userPrincipalName не задан, но sAMAccountName@domainFQDN должен находиться. |
-| userUpnSet | пользователь | pastukhov.lab | userUpnSet | UPN=userUpnSetX@pastukhov.lab | Проверка отличия явного UPN от generated UPN. |
-| userImplicitOwner | пользователь | pastukhov.lab | userImplicitOwner | - | Объект, у которого generated UPN пересекается с явным UPN другого объекта. |
-| userConflict | пользователь | pastukhov.lab | userConflict | UPN=userImplicitOwner@pastukhov.lab | Объект с явным UPN, который должен иметь приоритет над generated UPN другого объекта. |
-| userTrustPastukhov | пользователь | pastukhov.lab | userTrust | UPN=userTrust@pastukhov.lab | Проверка одинакового UPN-like значения в разных доменных контекстах: объект pastukhov.lab. |
-| userTrustDomain3 | пользователь | domain3.lab | userTrust | UPN=userTrust@pastukhov.lab | Проверка одинакового UPN-like значения в разных доменных контекстах: объект domain3.lab. |
-| dnEscapedComma | пользователь | pastukhov.lab | dnEscapedComma | UPN=dnEscapedComma@pastukhov.lab | DN со спецсимволом запятая. |
-| dnEscapedPlus | пользователь | pastukhov.lab | dnEscapedPlus | UPN=dnEscapedPlus@pastukhov.lab | DN со спецсимволом плюс. |
-| dnEscapedQuote | пользователь | pastukhov.lab | dnEscapedQuote | UPN=dnEscapedQuote@pastukhov.lab | DN с кавычками. |
-| dnEscapedBackslash | пользователь | pastukhov.lab | dnEscapedBackslash | UPN=dnEscapedBackslash@pastukhov.lab | DN с обратным слешем. |
-| dnEscapedAngle | пользователь | pastukhov.lab | dnEscapedAngle | UPN=dnEscapedAngle@pastukhov.lab | DN с угловыми скобками. |
-| dnEscapedSemicolon | пользователь | pastukhov.lab | dnEscapedSemicolon | UPN=dnEscapedSemicolon@pastukhov.lab | DN с точкой с запятой. |
-| dnEscapedEquals | пользователь | pastukhov.lab | dnEscapedEquals | UPN=dnEscapedEquals@pastukhov.lab | DN со знаком равно. |
-| dnSlash | пользователь | pastukhov.lab | dnSlash | UPN=dnSlash@pastukhov.lab | DN со слешем. |
-| dnEscapedHash | пользователь | pastukhov.lab | dnEscapedHash | UPN=dnEscapedHash@pastukhov.lab | DN с экранированным # в начале CN. |
-| cornerSamTarget | пользователь | pastukhov.lab | cornerSamTarget | UPN=cornerSamTarget@pastukhov.lab; displayName=Corner SAM Target | Целевой объект для проверки, что sAMAccountName/UPN-подобные форматы проверяются раньше displayName. |
-| cornerUpnTarget | пользователь | pastukhov.lab | cornerUpnTarget | UPN=cornerUpnTarget@pastukhov.lab | Целевой объект для проверки приоритета userPrincipalName над displayName. |
-| cornerDownlevelTarget | пользователь | pastukhov.lab | cornerDownlevelTarget | UPN=cornerDownlevelTarget@pastukhov.lab | Целевой объект для проверки приоритета DOMAIN\user над displayName. |
-| cornerDnTarget | пользователь | pastukhov.lab | cornerDnTarget | UPN=cornerDnTarget@pastukhov.lab | Целевой объект для проверки приоритета distinguishedName над displayName. |
-| cornerCanonicalTarget | пользователь | pastukhov.lab | cornerCanonicalTarget | UPN=cornerCanonicalTarget@pastukhov.lab | Целевой объект для проверки приоритета canonicalName над displayName. |
-| cornerGuidTarget | пользователь | pastukhov.lab | cornerGuidTarget | UPN=cornerGuidTarget@pastukhov.lab | Целевой объект для проверки приоритета objectGUID над displayName. |
-| cornerSpnTarget | пользователь | pastukhov.lab | cornerSpnTarget | UPN=cornerSpnTarget@pastukhov.lab; SPN=HTTP/cornerSpnTarget | Целевой объект для проверки пересечения SPN/displayName. |
-| cornerSidTarget | пользователь | pastukhov.lab | cornerSidTarget | UPN=cornerSidTarget@pastukhov.lab | Целевой объект для проверки пересечения objectSid/displayName. |
-| userDisplaySam | пользователь | pastukhov.lab | userDisplaySam | UPN=userDisplaySam@pastukhov.lab; displayName=cornerSamTarget | displayName намеренно совпадает с sAMAccountName другого объекта. |
-| userDisplayUpn | пользователь | pastukhov.lab | userDisplayUpn | UPN=userDisplayUpn@pastukhov.lab; displayName=cornerUpnTarget@pastukhov.lab | displayName намеренно совпадает с UPN другого объекта. |
-| userDisplayNetbios | пользователь | pastukhov.lab | userDisplayNetbios | UPN=userDisplayNetbios@pastukhov.lab; displayName=PASTUKHOV\cornerDownlevelTarget | displayName намеренно совпадает с down-level именем другого объекта. |
-| userDisplayDn | пользователь | pastukhov.lab | userDisplayDn | UPN=userDisplayDn@pastukhov.lab; displayName=CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab | displayName намеренно совпадает с DN другого объекта. |
-| userDisplayCanonical | пользователь | pastukhov.lab | userDisplayCanonical | UPN=userDisplayCanonical@pastukhov.lab; displayName=pastukhov.lab/Users/cornerCanonicalTarget | displayName намеренно совпадает с canonicalName другого объекта. |
-| userDisplayGuid | пользователь | pastukhov.lab | userDisplayGuid | UPN=userDisplayGuid@pastukhov.lab; displayName={cccccccc-0000-0000-0000-000000000066} | displayName намеренно совпадает с GUID другого объекта. |
-| userDisplaySpn | пользователь | pastukhov.lab | userDisplaySpn | UPN=userDisplaySpn@pastukhov.lab; displayName=HTTP/cornerSpnTarget | displayName намеренно совпадает с SPN другого объекта. |
-| userDisplaySid | пользователь | pastukhov.lab | userDisplaySid | UPN=userDisplaySid@pastukhov.lab; displayName=S-1-5-21-2845156888-2425353457-3474467337-1668 | displayName намеренно совпадает с SID другого объекта. |
-| userSameDisplayOne | пользователь | pastukhov.lab | userSameDisplayOne | UPN=userSameDisplayOne@pastukhov.lab; displayName=Same Display | Первый объект с одинаковым displayName. |
-| userSameDisplayTwo | пользователь | pastukhov.lab | userSameDisplayTwo | UPN=userSameDisplayTwo@pastukhov.lab; displayName=Same Display | Второй объект с таким же displayName для проверки not_unique. |
+| id | Поля объекта | Зачем нужен |
+|---|---|---|
+| userA | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userA<br>- userPrincipalName: userA@pastukhov.lab<br>- displayName: User A<br>- servicePrincipalName: HTTP/userA<br>- sIDHistory: S-1-5-21-2845156888-2425353457-3474467337-5114 | Базовый пользователь домена pastukhov.lab для проверок LDAP и Kerberos. |
+| userB | - domainFQDN: domain3.lab<br>- domainNetBIOS: DOMAIN3<br>- sAMAccountName: userB<br>- userPrincipalName: userB@domain3.lab<br>- displayName: UserB<br>- servicePrincipalName: HTTP/userB<br>- sIDHistory: S-1-5-21-3677553567-317466416-2570716728-5106 | Базовый пользователь домена domain3.lab для проверок второго домена. |
+| dc01 | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: 10-23-RP-DC-01$<br>- displayName: 10-23-RP-DC-01<br>- servicePrincipalName: cifs/10-23-RP-DC-01.pastukhov.lab, HOST/10-23-RP-DC-01.pastukhov.lab | Компьютерный/сервисный объект для SPN и Kerberos TGS-REQ. |
+| krbtgt | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: krbtgt | Сервисный объект для отдельного случая krbtgt. |
+| userImplicit | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userImplicit<br>- userPrincipalName: пусто | Проверка generated UPN: userPrincipalName не задан, но sAMAccountName@domainFQDN должен находиться. |
+| userUpnSet | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userUpnSet<br>- userPrincipalName: userUpnSetX@pastukhov.lab | Проверка отличия явного UPN от generated UPN. |
+| userImplicitOwner | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userImplicitOwner<br>- userPrincipalName: пусто | Объект, у которого generated UPN пересекается с явным UPN другого объекта. |
+| userConflict | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userConflict<br>- userPrincipalName: userImplicitOwner@pastukhov.lab | Объект с явным UPN, который должен иметь приоритет над generated UPN другого объекта. |
+| userTrustPastukhov | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userTrust<br>- userPrincipalName: userTrust@pastukhov.lab | Проверка одинакового UPN-like значения в разных доменных контекстах: объект pastukhov.lab. |
+| userTrustDomain3 | - domainFQDN: domain3.lab<br>- domainNetBIOS: DOMAIN3<br>- sAMAccountName: userTrust<br>- userPrincipalName: userTrust@pastukhov.lab | Проверка одинакового UPN-like значения в разных доменных контекстах: объект domain3.lab. |
+| dnEscapedComma | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedComma<br>- userPrincipalName: dnEscapedComma@pastukhov.lab | DN со спецсимволом запятая. |
+| dnEscapedPlus | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedPlus<br>- userPrincipalName: dnEscapedPlus@pastukhov.lab | DN со спецсимволом плюс. |
+| dnEscapedQuote | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedQuote<br>- userPrincipalName: dnEscapedQuote@pastukhov.lab | DN с кавычками. |
+| dnEscapedBackslash | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedBackslash<br>- userPrincipalName: dnEscapedBackslash@pastukhov.lab | DN с обратным слешем. |
+| dnEscapedAngle | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedAngle<br>- userPrincipalName: dnEscapedAngle@pastukhov.lab | DN с угловыми скобками. |
+| dnEscapedSemicolon | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedSemicolon<br>- userPrincipalName: dnEscapedSemicolon@pastukhov.lab | DN с точкой с запятой. |
+| dnEscapedEquals | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedEquals<br>- userPrincipalName: dnEscapedEquals@pastukhov.lab | DN со знаком равно. |
+| dnSlash | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnSlash<br>- userPrincipalName: dnSlash@pastukhov.lab | DN со слешем. |
+| dnEscapedHash | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: dnEscapedHash<br>- userPrincipalName: dnEscapedHash@pastukhov.lab | DN с экранированным # в начале CN. |
+| cornerSamTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerSamTarget<br>- userPrincipalName: cornerSamTarget@pastukhov.lab<br>- displayName: Corner SAM Target | Целевой объект для проверки, что sAMAccountName/UPN-подобные форматы проверяются раньше displayName. |
+| cornerUpnTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerUpnTarget<br>- userPrincipalName: cornerUpnTarget@pastukhov.lab | Целевой объект для проверки приоритета userPrincipalName над displayName. |
+| cornerDownlevelTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerDownlevelTarget<br>- userPrincipalName: cornerDownlevelTarget@pastukhov.lab | Целевой объект для проверки приоритета DOMAIN\user над displayName. |
+| cornerDnTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerDnTarget<br>- userPrincipalName: cornerDnTarget@pastukhov.lab | Целевой объект для проверки приоритета distinguishedName над displayName. |
+| cornerCanonicalTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerCanonicalTarget<br>- userPrincipalName: cornerCanonicalTarget@pastukhov.lab | Целевой объект для проверки приоритета canonicalName над displayName. |
+| cornerGuidTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerGuidTarget<br>- userPrincipalName: cornerGuidTarget@pastukhov.lab | Целевой объект для проверки приоритета objectGUID над displayName. |
+| cornerSpnTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerSpnTarget<br>- userPrincipalName: cornerSpnTarget@pastukhov.lab<br>- servicePrincipalName: HTTP/cornerSpnTarget | Целевой объект для проверки пересечения SPN/displayName. |
+| cornerSidTarget | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: cornerSidTarget<br>- userPrincipalName: cornerSidTarget@pastukhov.lab | Целевой объект для проверки пересечения objectSid/displayName. |
+| userDisplaySam | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplaySam<br>- userPrincipalName: userDisplaySam@pastukhov.lab<br>- displayName: cornerSamTarget | displayName намеренно совпадает с sAMAccountName другого объекта. |
+| userDisplayUpn | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplayUpn<br>- userPrincipalName: userDisplayUpn@pastukhov.lab<br>- displayName: cornerUpnTarget@pastukhov.lab | displayName намеренно совпадает с UPN другого объекта. |
+| userDisplayNetbios | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplayNetbios<br>- userPrincipalName: userDisplayNetbios@pastukhov.lab<br>- displayName: PASTUKHOV\cornerDownlevelTarget | displayName намеренно совпадает с down-level именем другого объекта. |
+| userDisplayDn | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplayDn<br>- userPrincipalName: userDisplayDn@pastukhov.lab<br>- displayName: CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab | displayName намеренно совпадает с DN другого объекта. |
+| userDisplayCanonical | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplayCanonical<br>- userPrincipalName: userDisplayCanonical@pastukhov.lab<br>- displayName: pastukhov.lab/Users/cornerCanonicalTarget | displayName намеренно совпадает с canonicalName другого объекта. |
+| userDisplayGuid | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplayGuid<br>- userPrincipalName: userDisplayGuid@pastukhov.lab<br>- displayName: {cccccccc-0000-0000-0000-000000000066} | displayName намеренно совпадает с GUID другого объекта. |
+| userDisplaySpn | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplaySpn<br>- userPrincipalName: userDisplaySpn@pastukhov.lab<br>- displayName: HTTP/cornerSpnTarget | displayName намеренно совпадает с SPN другого объекта. |
+| userDisplaySid | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userDisplaySid<br>- userPrincipalName: userDisplaySid@pastukhov.lab<br>- displayName: S-1-5-21-2845156888-2425353457-3474467337-1668 | displayName намеренно совпадает с SID другого объекта. |
+| userSameDisplayOne | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userSameDisplayOne<br>- userPrincipalName: userSameDisplayOne@pastukhov.lab<br>- displayName: Same Display | Первый объект с одинаковым displayName. |
+| userSameDisplayTwo | - domainFQDN: pastukhov.lab<br>- domainNetBIOS: PASTUKHOV<br>- sAMAccountName: userSameDisplayTwo<br>- userPrincipalName: userSameDisplayTwo@pastukhov.lab<br>- displayName: Same Display | Второй объект с таким же displayName для проверки not_unique. |
 
 ## Тестовые кейсы
 
