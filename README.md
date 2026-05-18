@@ -189,81 +189,114 @@ TGS-REQ -> sname -> Server Principal Lookup
 
 ## Тестовые кейсы
 
-Описания кейсов читаются так: какое событие подается на вход -> какой формат должен быть определен -> какой объект или причина ожидается. Колонки про версии Windows из статьи сюда не переносятся: прототип проверяет формат имени, ветку алгоритма и найденный объект.
+В `tests.json` у каждого кейса есть технический `id`, но в консоли теперь показывается короткое человеческое название `title`. Ориентироваться лучше по номеру теста, названию и формату, а `id` нужен как стабильная ссылка на кейс в файле.
 
-| id | Раздел | Что проверяется |
+Разделы тестов:
+
+| id раздела | Название в консоли | Количество |
 |---|---|---|
-| ldap_sam_userA_not_accepted | LDAP: форматы из таблицы | LDAP: вход "userA" -> ожидаемый формат: displayName -> результат: object_not_found |
-| ldap_upn_userA | LDAP: форматы из таблицы | LDAP: вход "userA@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: userA |
-| ldap_upn_userB | LDAP: форматы из таблицы | LDAP: вход "userB@domain3.lab" -> ожидаемый формат: userPrincipalName -> результат: userB |
-| ldap_downlevel_userA | LDAP: форматы из таблицы | LDAP: вход "PASTUKHOV\userA" -> ожидаемый формат: downLevelLogonName -> результат: userA |
-| ldap_downlevel_userB | LDAP: форматы из таблицы | LDAP: вход "DOMAIN3\userB" -> ожидаемый формат: downLevelLogonName -> результат: userB |
-| ldap_dn_userA | LDAP: форматы из таблицы | LDAP: вход "CN=userA,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: userA |
-| ldap_dn_userB | LDAP: форматы из таблицы | LDAP: вход "CN=userB,CN=Users,DC=domain3,DC=lab" -> ожидаемый формат: distinguishedName -> результат: userB |
-| ldap_canonical_userA | LDAP: форматы из таблицы | LDAP: вход "pastukhov.lab/Users/userA" -> ожидаемый формат: canonicalName -> результат: userA |
-| ldap_canonical_userB | LDAP: форматы из таблицы | LDAP: вход "domain3.lab/Users/userB" -> ожидаемый формат: canonicalName -> результат: userB |
-| ldap_display_userA | LDAP: форматы из таблицы | LDAP: вход "User A" -> ожидаемый формат: displayName -> результат: userA |
-| ldap_display_userB | LDAP: форматы из таблицы | LDAP: вход "UserB" -> ожидаемый формат: displayName -> результат: userB |
-| ldap_guid_userA | LDAP: форматы из таблицы | LDAP: вход "{5c69b042-e0e9-475a-ae37-1751ef9e05e7}" -> ожидаемый формат: objectGUID -> результат: userA |
-| ldap_guid_userB | LDAP: форматы из таблицы | LDAP: вход "{36eba909-f454-4695-918b-dcdf33b7cd88}" -> ожидаемый формат: objectGUID -> результат: userB |
-| ldap_spn_userA | LDAP: форматы из таблицы | LDAP: вход "HTTP/userA" -> ожидаемый формат: servicePrincipalName -> результат: userA |
-| ldap_spn_userB | LDAP: форматы из таблицы | LDAP: вход "HTTP/userB" -> ожидаемый формат: servicePrincipalName -> результат: userB |
-| ldap_object_sid_userA | LDAP: форматы из таблицы | LDAP: вход "S-1-5-21-2845156888-2425353457-3474467337-1114" -> ожидаемый формат: objectSid -> результат: userA |
-| ldap_object_sid_userB | LDAP: форматы из таблицы | LDAP: вход "S-1-5-21-3677553567-317466416-2570716728-1106" -> ожидаемый формат: objectSid -> результат: userB |
-| ldap_mapspn_userA | LDAP: форматы из таблицы | LDAP: вход "HOST/userA" -> ожидаемый формат: MapSPN -> результат: userA |
-| ldap_mapspn_userB | LDAP: форматы из таблицы | LDAP: вход "HOST/userB" -> ожидаемый формат: MapSPN -> результат: userB |
-| ldap_sid_history_userA | LDAP: дополнительные шаги алгоритма | LDAP: вход "S-1-5-21-2845156888-2425353457-3474467337-5114" -> ожидаемый формат: sIDHistory -> результат: userA |
-| ldap_canonical_lf_userA | LDAP: дополнительные шаги алгоритма | LDAP: вход "pastukhov.lab/Users\nuserA" -> ожидаемый формат: canonicalNameWithLF -> результат: userA |
-| ldap_dnEscapedComma | LDAP: спецсимволы в DN | LDAP: вход "CN=user\,A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedComma |
-| ldap_dnEscapedPlus | LDAP: спецсимволы в DN | LDAP: вход "CN=user\+A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedPlus |
-| ldap_dnEscapedQuote | LDAP: спецсимволы в DN | LDAP: вход "CN=user\"A\",CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedQuote |
-| ldap_dnEscapedBackslash | LDAP: спецсимволы в DN | LDAP: вход "CN=user\\A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedBackslash |
-| ldap_dnEscapedAngle | LDAP: спецсимволы в DN | LDAP: вход "CN=user\<A\>,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedAngle |
-| ldap_dnEscapedSemicolon | LDAP: спецсимволы в DN | LDAP: вход "CN=user\;A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedSemicolon |
-| ldap_dnEscapedEquals | LDAP: спецсимволы в DN | LDAP: вход "CN=user\=A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedEquals |
-| ldap_dnSlash | LDAP: спецсимволы в DN | LDAP: вход "CN=user/A,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnSlash |
-| ldap_dnEscapedHash | LDAP: спецсимволы в DN | LDAP: вход "CN=\#userA,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: dnEscapedHash |
-| ldap_generated_upn | LDAP: пересечения полей и приоритеты | LDAP: вход "userImplicit@pastukhov.lab" -> ожидаемый формат: generatedUPN -> результат: userImplicit |
-| ldap_implicit_upn_still_resolves_when_explicit_set | LDAP: пересечения полей и приоритеты | LDAP: вход "userUpnSet@pastukhov.lab" -> ожидаемый формат: generatedUPN -> результат: userUpnSet |
-| ldap_explicit_changed_upn | LDAP: пересечения полей и приоритеты | LDAP: вход "userUpnSetX@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: userUpnSet |
-| ldap_explicit_upn_wins | LDAP: пересечения полей и приоритеты | LDAP: вход "userImplicitOwner@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: userConflict |
-| ldap_trust_local_pastukhov_wins | LDAP: пересечения полей и приоритеты | LDAP: вход "userTrust@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: userTrustPastukhov |
-| ldap_trust_local_domain3_wins | LDAP: пересечения полей и приоритеты | LDAP: вход "userTrust@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: userTrustDomain3 |
-| ldap_duplicate_display_name | LDAP: пересечения полей и приоритеты | LDAP: вход "Same Display" -> ожидаемый формат: displayName -> результат: not_unique |
-| ldap_display_equals_sam | LDAP: пересечения полей и приоритеты | LDAP: вход "cornerSamTarget" -> ожидаемый формат: displayName -> результат: userDisplaySam |
-| ldap_display_equals_upn | LDAP: пересечения полей и приоритеты | LDAP: вход "cornerUpnTarget@pastukhov.lab" -> ожидаемый формат: userPrincipalName -> результат: cornerUpnTarget |
-| ldap_display_equals_downlevel | LDAP: пересечения полей и приоритеты | LDAP: вход "PASTUKHOV\cornerDownlevelTarget" -> ожидаемый формат: downLevelLogonName -> результат: cornerDownlevelTarget |
-| ldap_display_equals_dn | LDAP: пересечения полей и приоритеты | LDAP: вход "CN=cornerDnTarget,CN=Users,DC=pastukhov,DC=lab" -> ожидаемый формат: distinguishedName -> результат: cornerDnTarget |
-| ldap_display_equals_canonical | LDAP: пересечения полей и приоритеты | LDAP: вход "pastukhov.lab/Users/cornerCanonicalTarget" -> ожидаемый формат: canonicalName -> результат: cornerCanonicalTarget |
-| ldap_display_equals_guid | LDAP: пересечения полей и приоритеты | LDAP: вход "{cccccccc-0000-0000-0000-000000000066}" -> ожидаемый формат: objectGUID -> результат: cornerGuidTarget |
-| ldap_display_equals_spn | LDAP: пересечения полей и приоритеты | LDAP: вход "HTTP/cornerSpnTarget" -> ожидаемый формат: displayName -> результат: userDisplaySpn |
-| ldap_display_equals_sid | LDAP: пересечения полей и приоритеты | LDAP: вход "S-1-5-21-2845156888-2425353457-3474467337-1668" -> ожидаемый формат: displayName -> результат: userDisplaySid |
-| krb_as_enterprise_upn_userA | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userA@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userA |
-| krb_as_enterprise_upn_userB | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userB@domain3.lab], realm=DOMAIN3.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userB |
-| krb_as_enterprise_generated_upn | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userImplicit@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/generatedUPN -> результат: userImplicit |
-| krb_as_enterprise_implicit_upn_with_explicit_set | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userUpnSet@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/generatedUPN -> результат: userUpnSet |
-| krb_as_enterprise_explicit_changed_upn | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userUpnSetX@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userUpnSet |
-| krb_as_enterprise_explicit_wins | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[userImplicitOwner@pastukhov.lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE/userPrincipalName -> результат: userConflict |
-| krb_as_principal_sam_userA | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=1, name-string=[userA], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName -> результат: userA |
-| krb_as_principal_sam_userB | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=1, name-string=[userB], realm=DOMAIN3.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName -> результат: userB |
-| krb_as_principal_sam_dollar | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=1, name-string=[10-23-RP-DC-01], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/sAMAccountName+$ -> результат: dc01 |
-| krb_as_principal_upn_fallback | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=1, name-string=[userUpnSetX], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/userPrincipalName -> результат: userUpnSet |
-| krb_as_dn_not_accepted | Kerberos: Client Principal Lookup | Kerberos AS-REQ: cname name-type=10, name-string=[CN=userA,CN=Users,DC=pastukhov,DC=lab], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-ENTERPRISE -> результат: object_not_found |
-| krb_tgs_srv_inst_userprincipalname_not_found | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=2, name-string=[cifs, 10-23-RP-DC-01.pastukhov.lab], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/userPrincipalName -> результат: object_not_found |
-| krb_tgs_krbtgt_special_case | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=2, name-string=[krbtgt, krbtgt], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/krbtgt/sAMAccountName -> результат: krbtgt |
-| krb_tgs_srv_inst_sam_dollar | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=2, name-string=[10-23-RP-DC-01], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-SRV-INST/sAMAccountName+$ -> результат: dc01 |
-| krb_tgs_enterprise_spn_dc | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=10, name-string=[cifs/10-23-RP-DC-01.pastukhov.lab], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/servicePrincipalName -> результат: dc01 |
-| krb_tgs_enterprise_spn_userA | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=10, name-string=[HTTP/userA], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/servicePrincipalName -> результат: userA |
-| krb_tgs_enterprise_sam_with_spn | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=10, name-string=[userA], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/sAMAccountName -> результат: userA |
-| krb_tgs_enterprise_fallback_without_spn_fails | Kerberos: Server Principal Lookup | Kerberos TGS-REQ: sname name-type=10, name-string=[userUpnSet], realm=PASTUKHOV.LAB -> Server Principal Lookup; ожидаемый формат: NT-ENTERPRISE/sAMAccountName -> результат: object_not_found |
+| `ldap_table` | LDAP: базовые форматы имени | 19 |
+| `ldap_algorithm` | LDAP: дополнительные форматы | 2 |
+| `ldap_dn_special` | LDAP: DN со спецсимволами | 9 |
+| `ldap_corner` | LDAP: корнеры и приоритет форматов | 15 |
+| `kerberos_client_lookup` | Kerberos: AS-REQ / Client Principal Lookup | 11 |
+| `kerberos_server_lookup` | Kerberos: TGS-REQ / Server Principal Lookup | 7 |
+
+Список кейсов:
+
+| № | Название | Формат / ветка | Раздел | id |
+|---|---|---|---|---|
+| 1 | LDAP: короткое имя userA без домена не находится | displayName / not_found | LDAP: базовые форматы имени | `ldap_sam_userA_not_accepted` |
+| 2 | LDAP: найти userA по UPN | userPrincipalName | LDAP: базовые форматы имени | `ldap_upn_userA` |
+| 3 | LDAP: найти userB по UPN | userPrincipalName | LDAP: базовые форматы имени | `ldap_upn_userB` |
+| 4 | LDAP: найти userA по DOMAIN\user | downLevelLogonName | LDAP: базовые форматы имени | `ldap_downlevel_userA` |
+| 5 | LDAP: найти userB по DOMAIN\user | downLevelLogonName | LDAP: базовые форматы имени | `ldap_downlevel_userB` |
+| 6 | LDAP: найти userA по DN | distinguishedName | LDAP: базовые форматы имени | `ldap_dn_userA` |
+| 7 | LDAP: найти userB по DN | distinguishedName | LDAP: базовые форматы имени | `ldap_dn_userB` |
+| 8 | LDAP: найти userA по canonicalName | canonicalName | LDAP: базовые форматы имени | `ldap_canonical_userA` |
+| 9 | LDAP: найти userB по canonicalName | canonicalName | LDAP: базовые форматы имени | `ldap_canonical_userB` |
+| 10 | LDAP: найти userA по displayName | displayName | LDAP: базовые форматы имени | `ldap_display_userA` |
+| 11 | LDAP: найти userB по displayName | displayName | LDAP: базовые форматы имени | `ldap_display_userB` |
+| 12 | LDAP: найти userA по objectGUID | objectGUID | LDAP: базовые форматы имени | `ldap_guid_userA` |
+| 13 | LDAP: найти userB по objectGUID | objectGUID | LDAP: базовые форматы имени | `ldap_guid_userB` |
+| 14 | LDAP: найти userA по SPN | servicePrincipalName | LDAP: базовые форматы имени | `ldap_spn_userA` |
+| 15 | LDAP: найти userB по SPN | servicePrincipalName | LDAP: базовые форматы имени | `ldap_spn_userB` |
+| 16 | LDAP: найти userA по objectSid | objectSid | LDAP: базовые форматы имени | `ldap_object_sid_userA` |
+| 17 | LDAP: найти userB по objectSid | objectSid | LDAP: базовые форматы имени | `ldap_object_sid_userB` |
+| 18 | LDAP: найти userA через MapSPN | MapSPN | LDAP: базовые форматы имени | `ldap_mapspn_userA` |
+| 19 | LDAP: найти userB через MapSPN | MapSPN | LDAP: базовые форматы имени | `ldap_mapspn_userB` |
+| 20 | LDAP: найти userA по sIDHistory | sIDHistory | LDAP: дополнительные форматы | `ldap_sid_history_userA` |
+| 21 | LDAP: найти userA по canonicalName с переводом строки | canonicalNameWithLF | LDAP: дополнительные форматы | `ldap_canonical_lf_userA` |
+| 22 | LDAP DN: запятая в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedComma` |
+| 23 | LDAP DN: плюс в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedPlus` |
+| 24 | LDAP DN: кавычки в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedQuote` |
+| 25 | LDAP DN: обратный слеш в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedBackslash` |
+| 26 | LDAP DN: угловые скобки в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedAngle` |
+| 27 | LDAP DN: точка с запятой в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedSemicolon` |
+| 28 | LDAP DN: знак равно в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedEquals` |
+| 29 | LDAP DN: слеш в CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnSlash` |
+| 30 | LDAP DN: # в начале CN | distinguishedName | LDAP: DN со спецсимволами | `ldap_dnEscapedHash` |
+| 31 | LDAP: generated UPN находит объект без явного UPN | generatedUPN | LDAP: корнеры и приоритет форматов | `ldap_generated_upn` |
+| 32 | LDAP: generated UPN работает при другом явном UPN | generatedUPN | LDAP: корнеры и приоритет форматов | `ldap_implicit_upn_still_resolves_when_explicit_set` |
+| 33 | LDAP: явный UPN отличается от generated UPN | userPrincipalName | LDAP: корнеры и приоритет форматов | `ldap_explicit_changed_upn` |
+| 34 | LDAP: явный UPN выигрывает у generated UPN | userPrincipalName | LDAP: корнеры и приоритет форматов | `ldap_explicit_upn_wins` |
+| 35 | LDAP: одинаковый UPN-like в контексте pastukhov.lab | userPrincipalName + domain_context | LDAP: корнеры и приоритет форматов | `ldap_trust_local_pastukhov_wins` |
+| 36 | LDAP: одинаковый UPN-like в контексте domain3.lab | userPrincipalName + domain_context | LDAP: корнеры и приоритет форматов | `ldap_trust_local_domain3_wins` |
+| 37 | LDAP: одинаковый displayName дает not_unique | displayName / not_unique | LDAP: корнеры и приоритет форматов | `ldap_duplicate_display_name` |
+| 38 | LDAP: displayName совпал с SAM другого объекта | displayName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_sam` |
+| 39 | LDAP: UPN выигрывает у displayName | userPrincipalName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_upn` |
+| 40 | LDAP: DOMAIN\user выигрывает у displayName | downLevelLogonName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_downlevel` |
+| 41 | LDAP: DN выигрывает у displayName | distinguishedName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_dn` |
+| 42 | LDAP: canonicalName выигрывает у displayName | canonicalName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_canonical` |
+| 43 | LDAP: objectGUID выигрывает у displayName | objectGUID | LDAP: корнеры и приоритет форматов | `ldap_display_equals_guid` |
+| 44 | LDAP: displayName проверяется раньше SPN | displayName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_spn` |
+| 45 | LDAP: displayName проверяется раньше SID | displayName | LDAP: корнеры и приоритет форматов | `ldap_display_equals_sid` |
+| 46 | Kerberos AS-REQ: найти userA по UPN | NT-ENTERPRISE/userPrincipalName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_upn_userA` |
+| 47 | Kerberos AS-REQ: найти userB по UPN | NT-ENTERPRISE/userPrincipalName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_upn_userB` |
+| 48 | Kerberos AS-REQ: generated UPN находит userImplicit | NT-ENTERPRISE/generatedUPN | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_generated_upn` |
+| 49 | Kerberos AS-REQ: generated UPN при другом явном UPN | NT-ENTERPRISE/generatedUPN | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_implicit_upn_with_explicit_set` |
+| 50 | Kerberos AS-REQ: явный UPN отличается от generated UPN | NT-ENTERPRISE/userPrincipalName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_explicit_changed_upn` |
+| 51 | Kerberos AS-REQ: явный UPN выигрывает у generated UPN | NT-ENTERPRISE/userPrincipalName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_enterprise_explicit_wins` |
+| 52 | Kerberos AS-REQ: найти userA по account name | NT-PRINCIPAL/sAMAccountName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_principal_sam_userA` |
+| 53 | Kerberos AS-REQ: найти userB по account name | NT-PRINCIPAL/sAMAccountName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_principal_sam_userB` |
+| 54 | Kerberos AS-REQ: найти компьютер через account+$ | NT-PRINCIPAL/sAMAccountName+$ | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_principal_sam_dollar` |
+| 55 | Kerberos AS-REQ: fallback из account name в UPN | NT-PRINCIPAL/userPrincipalName | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_principal_upn_fallback` |
+| 56 | Kerberos AS-REQ: DN не считается principal-форматом | NT-ENTERPRISE / not_found | Kerberos: AS-REQ / Client Principal Lookup | `krb_as_dn_not_accepted` |
+| 57 | Kerberos TGS-REQ: service/host не ищется как SPN в NT-SRV-INST | NT-SRV-INST/userPrincipalName / not_found | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_srv_inst_userprincipalname_not_found` |
+| 58 | Kerberos TGS-REQ: специальный случай krbtgt/krbtgt | NT-SRV-INST/krbtgt/sAMAccountName | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_krbtgt_special_case` |
+| 59 | Kerberos TGS-REQ: найти компьютер через account+$ | NT-SRV-INST/sAMAccountName+$ | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_srv_inst_sam_dollar` |
+| 60 | Kerberos TGS-REQ: найти DC по SPN | NT-ENTERPRISE/servicePrincipalName | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_enterprise_spn_dc` |
+| 61 | Kerberos TGS-REQ: найти userA по SPN | NT-ENTERPRISE/servicePrincipalName | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_enterprise_spn_userA` |
+| 62 | Kerberos TGS-REQ: найти userA по account name при наличии SPN | NT-ENTERPRISE/sAMAccountName | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_enterprise_sam_with_spn` |
+| 63 | Kerberos TGS-REQ: account без SPN не подходит как server principal | NT-ENTERPRISE/sAMAccountName / not_found | Kerberos: TGS-REQ / Server Principal Lookup | `krb_tgs_enterprise_fallback_without_spn_fails` |
 
 ## Как запускать
 
-Ручной режим:
+Открыть интерактивное меню:
 
 ```powershell
 python run.py
 ```
+
+В меню:
+
+1. `Ручной ввод события` - руками ввести LDAP/Kerberos событие.
+2. `Автоматические тесты` - посмотреть список, выбрать один тест, запустить все тесты или один раздел.
+
+Самый удобный запуск одного теста:
+
+1. Запустить `python run.py`.
+2. Выбрать `2. Автоматические тесты`.
+3. Выбрать `1. Показать список тестов`, чтобы увидеть сгруппированный список с номерами.
+4. Выбрать `2. Выбрать тест из списка`.
+5. Ввести номер теста из первой колонки, например `14` для `LDAP: найти userA по SPN`.
+
+Запустить один раздел через меню:
+
+1. Запустить `python run.py`.
+2. Выбрать `2. Автоматические тесты`.
+3. Выбрать `4. Запустить раздел тестов`.
+4. Ввести номер раздела из списка или его id, например `ldap_table`.
 
 Запустить все тесты:
 
@@ -280,5 +313,7 @@ python run.py --list-tests
 Запустить один раздел:
 
 ```powershell
-python run.py --run-category ldap_corner
+python run.py --run-category ldap_table
 ```
+
+Если указать несуществующий раздел, CLI покажет доступные разделы и вернет ненулевой exit code.

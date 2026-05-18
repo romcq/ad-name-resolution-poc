@@ -15,18 +15,20 @@ from .resolver import resolve_event
 class TestCase:
     id: str
     category: str
+    title: str
+    format: str
     description: str
     input: dict[str, Any]
     expected: dict[str, Any]
 
 
 CATEGORY_LABELS = {
-    "ldap_table": "LDAP: форматы из таблицы",
-    "ldap_algorithm": "LDAP: дополнительные шаги алгоритма",
-    "ldap_dn_special": "LDAP: спецсимволы в DN",
-    "ldap_corner": "LDAP: пересечения полей и приоритеты",
-    "kerberos_client_lookup": "Kerberos: Client Principal Lookup",
-    "kerberos_server_lookup": "Kerberos: Server Principal Lookup",
+    "ldap_table": "LDAP: базовые форматы имени",
+    "ldap_algorithm": "LDAP: дополнительные форматы",
+    "ldap_dn_special": "LDAP: DN со спецсимволами",
+    "ldap_corner": "LDAP: корнеры и приоритет форматов",
+    "kerberos_client_lookup": "Kerberos: AS-REQ / Client Principal Lookup",
+    "kerberos_server_lookup": "Kerberos: TGS-REQ / Server Principal Lookup",
 }
 
 
@@ -37,6 +39,8 @@ def load_tests(path: str | Path) -> list[TestCase]:
         TestCase(
             id=item["id"],
             category=item.get("category", "без_категории"),
+            title=item.get("title") or item["description"],
+            format=item.get("format") or "-",
             description=item["description"],
             input=item["input"],
             expected=item["expected"],
@@ -46,9 +50,43 @@ def load_tests(path: str | Path) -> list[TestCase]:
 
 
 def list_tests(tests: list[TestCase]) -> None:
+    current_category = None
     for index, test in enumerate(tests, 1):
-        category_label = CATEGORY_LABELS.get(test.category, test.category)
-        print(f"{index:02d}. [{category_label}] {test.description}")
+        if test.category != current_category:
+            current_category = test.category
+            category_label = CATEGORY_LABELS.get(test.category, test.category)
+            print(f"\n== {category_label} ({test.category}) ==")
+        print(f"{index:02d}. {test.title}")
+        print(f"    формат: {test.format} | {expected_summary(test)}")
+        print(f"    вход: {input_summary(test)}")
+        print(f"    id: {test.id}")
+
+
+def input_summary(test: TestCase) -> str:
+    event = test.input
+    if event.get("protocol") == "LDAP":
+        request = event.get("request") or {}
+        return f'BindRequest.name="{request.get("name", "")}"'
+    if event.get("protocol") == "Kerberos":
+        message_type = event.get("message_type")
+        principal_key = "cname" if message_type == "AS-REQ" else "sname"
+        principal = event.get(principal_key) or {}
+        name_string = ",".join(principal.get("name_string") or [])
+        return (
+            f"{message_type} {principal_key}: "
+            f"name_type={principal.get('name_type')}, "
+            f"name_string=[{name_string}], "
+            f"realm={event.get('realm') or '-'}"
+        )
+    return str(event)
+
+
+def expected_summary(test: TestCase) -> str:
+    expected = test.expected
+    if expected.get("resolved") is True:
+        return f"ожидается объект {expected.get('matched_object_id')} ({expected.get('matched_format')})"
+    detected = expected.get("detected_format") or expected.get("matched_format") or "-"
+    return f"ожидается {expected.get('reason')} (формат: {detected})"
 
 
 def run_test(
@@ -70,6 +108,8 @@ def run_test(
     return {
         "id": test.id,
         "category": test.category,
+        "title": test.title,
+        "format": test.format,
         "description": test.description,
         "passed": not mismatches,
         "expected": test.expected,
@@ -91,7 +131,10 @@ def run_all_tests(
 
 def print_test_result(result: dict[str, Any], verbose: bool = True) -> None:
     status = "пройден" if result["passed"] else "ошибка"
-    print(f"\n[{status}] {result['id']} - {result['description']}")
+    print(f"\n[{status}] {result['title']}")
+    if verbose or not result["passed"]:
+        print(f"id: {result['id']}")
+        print(f"описание: {result['description']}")
     actual = result["actual"]
     parsed_format = actual.get("matched_format") or actual.get("detected_format") or "-"
     parsed_object = actual.get("matched_object_id") or "-"

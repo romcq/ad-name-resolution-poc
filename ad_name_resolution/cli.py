@@ -10,6 +10,7 @@ from typing import Any
 from .repository import ADSnapshotRepository
 from .resolver import resolve_event
 from .test_runner import (
+    CATEGORY_LABELS,
     list_tests,
     load_tests,
     print_summary,
@@ -66,10 +67,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.run_category:
         # Пустая категория почти всегда означает опечатку, поэтому возвращаем
         # ошибку вместо "0 passed, 0 failed".
-        if not any(test.category == args.run_category for test in tests):
+        category = resolve_category_choice(args.run_category, tests)
+        if category is None:
             print(f"Тесты для категории не найдены: {args.run_category}")
+            print_available_categories(tests)
             return 2
-        results = run_all_tests(tests, repository, spn_mappings, args.run_category)
+        results = run_all_tests(tests, repository, spn_mappings, category)
         for result in results:
             print_test_result(result, verbose=False)
         print_summary(results)
@@ -129,11 +132,11 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
                 print_test_result(result, verbose=False)
             print_summary(results)
         elif choice == "4":
-            categories = sorted({test.category for test in tests})
-            print("Доступные разделы:", ", ".join(categories))
-            category = input("Введите раздел: ").strip()
-            if not any(test.category == category for test in tests):
-                print(f"Тесты для категории не найдены: {category}")
+            print_available_categories(tests)
+            category_raw = input("Введите номер или id раздела: ").strip()
+            category = resolve_category_choice(category_raw, tests)
+            if category is None:
+                print(f"Тесты для категории не найдены: {category_raw}")
                 continue
             results = run_all_tests(tests, repository, spn_mappings, category)
             for result in results:
@@ -143,6 +146,39 @@ def run_tests_menu(repository, spn_mappings, tests) -> None:
             return
         else:
             print("Неизвестный пункт меню.")
+
+
+def ordered_categories(tests) -> list[str]:
+    # Сохраняем порядок разделов из tests.json, чтобы номера в меню совпадали
+    # с тем, как тесты показываются в общем списке.
+    categories: list[str] = []
+    for test in tests:
+        if test.category not in categories:
+            categories.append(test.category)
+    return categories
+
+
+def print_available_categories(tests) -> None:
+    print("Доступные разделы:")
+    for index, category in enumerate(ordered_categories(tests), 1):
+        label = CATEGORY_LABELS.get(category, category)
+        count = sum(1 for test in tests if test.category == category)
+        print(f"{index}. {label} ({category}), тестов: {count}")
+
+
+def resolve_category_choice(raw_choice: str, tests) -> str | None:
+    categories = ordered_categories(tests)
+    if raw_choice.isdigit():
+        index = int(raw_choice)
+        if 1 <= index <= len(categories):
+            return categories[index - 1]
+    if raw_choice in categories:
+        return raw_choice
+    normalized = raw_choice.casefold()
+    for category in categories:
+        if CATEGORY_LABELS.get(category, category).casefold() == normalized:
+            return category
+    return None
 
 
 def run_manual_mode(repository, spn_mappings) -> None:
