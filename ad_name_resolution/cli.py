@@ -236,6 +236,7 @@ def prompt_ldap_event() -> dict[str, Any]:
     print("    - User A")
     print("    - UserB")
     print("    - 10-23-RP-DC-01")
+    print("    - HOST/cornerSpnTarget")
     print("  servicePrincipalName:")
     print("    - HTTP/userA")
     print("    - HTTP/userB")

@@ -1057,6 +1057,30 @@
       }
     },
     {
+      "id": "ldap_display_equals_mapspn",
+      "title": "Корнер LDAP: displayName проверяется раньше MapSPN",
+      "category": "ldap_corner",
+      "format": "displayName",
+      "description": "LDAP: вход \"HOST/cornerSpnTarget\" совпадает с displayName объекта userDisplayMapSpn. Если бы displayName не совпал, MapSPN мог бы заменить HOST на HTTP и найти cornerSpnTarget по SPN HTTP/cornerSpnTarget. Ожидаемый результат: userDisplayMapSpn",
+      "input": {
+        "protocol": "LDAP",
+        "bind_kind": "simple",
+        "request": {
+          "operation": "bindRequest",
+          "name": "HOST/cornerSpnTarget"
+        },
+        "domain_context": "pastukhov.lab"
+      },
+      "expected": {
+        "resolved": true,
+        "protocol": "LDAP",
+        "algorithm_branch": "LDAP Simple Authentication",
+        "matched_format": "displayName",
+        "matched_field": "displayName",
+        "matched_object_id": "userDisplayMapSpn"
+      }
+    },
+    {
       "id": "ldap_display_equals_sid",
       "title": "Корнер LDAP: displayName проверяется раньше SID",
       "category": "ldap_corner",
