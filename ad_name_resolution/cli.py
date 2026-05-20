@@ -350,6 +350,7 @@ def print_kerberos_name_string_hints(message_type: str, name_type: int) -> None:
         print("Примеры:")
         print("  - userA")
         print("  - userB")
+        print("  - user3")
         print("  - PASTUKHOV\\userA")
         print("  - DOMAIN3\\userB")
         print("  - 10-23-RP-DC-01")

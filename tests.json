@@ -1315,18 +1315,18 @@
       }
     },
     {
-      "id": "krb_as_principal_upn_fallback",
-      "title": "Корнер Kerberos AS-REQ: fallback из account name в UPN",
+      "id": "krb_as_principal_short_name_upn_variant",
+      "title": "Корнер Kerberos AS-REQ: короткое имя user3 найдено через UPN-вариант",
       "category": "kerberos_client_lookup",
       "format": "NT-PRINCIPAL/userPrincipalName",
-      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[userUpnSetX], realm=PASTUKHOV.LAB -> Client Principal Lookup; ожидаемый формат: NT-PRINCIPAL/userPrincipalName -> результат: userUpnSet",
+      "description": "Kerberos AS-REQ: cname name-type=1, name-string=[user3], realm=PASTUKHOV.LAB. Пользователя с sAMAccountName=user3 нет, поэтому после sAMAccountName и user3$ проверяется UPN-вариант user3@pastukhov.lab -> результат: userUpnAlias",
       "input": {
         "protocol": "Kerberos",
         "message_type": "AS-REQ",
         "cname": {
           "name_type": 1,
           "name_string": [
-            "userUpnSetX"
+            "user3"
           ]
         },
         "realm": "PASTUKHOV.LAB"
@@ -1337,7 +1337,7 @@
         "algorithm_branch": "Client Principal Lookup",
         "matched_format": "NT-PRINCIPAL/userPrincipalName",
         "matched_field": "userPrincipalName",
-        "matched_object_id": "userUpnSet"
+        "matched_object_id": "userUpnAlias"
       }
     },
     {
