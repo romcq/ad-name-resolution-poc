@@ -566,27 +566,6 @@ def placeholder_domain(value):
         return ""
     text = str(value)
     replacements = [
-        ("kxConflict", "<CONFLICT>"),
-        ("kxOwner", "<OWNER>"),
-        ("userConflict", "<CONFLICT>"),
-        ("userImplicitOwner", "<OWNER>"),
-        ("kxSvc", "<SERVICE_ACCOUNT>"),
-        ("svcUser", "<SERVICE_ACCOUNT>"),
-        ("kxNoSpn", "<ACCOUNT>"),
-        ("kxImplicit", "<USER>"),
-        ("kxUpnSetX", "<USER>"),
-        ("kxUpnSet", "<USER>"),
-        ("kxAlias", "<USER>"),
-        ("kxShort", "<USER>"),
-        ("kxBase", "<USER>"),
-        ("userImplicit", "<USER>"),
-        ("userUpnSetX", "<USER>"),
-        ("userUpnSet", "<USER>"),
-        ("userUpnAlias", "<USER>"),
-        ("user3", "<USER>"),
-        ("userA", "<USER>"),
-        ("userB", "<USER>"),
-        ("KX Base", "<USER> Display"),
         ("PASTUKHOV.LAB", "<REALM>"),
         ("pastukhov.lab", "<DOMAIN_FQDN>"),
         ("DOMAIN3.LAB", "<REALM>"),
@@ -603,78 +582,84 @@ def placeholder_domain(value):
     return text
 
 
-def account_placeholder(object_id, service=False):
-    if object_id in {"kxSvc", "svcUser"} or service:
-        return "<SERVICE_ACCOUNT>"
-    if object_id in {"kxNoSpn"}:
-        return "<ACCOUNT>"
-    if object_id in {"kxOwner", "userImplicitOwner"}:
-        return "<OWNER>"
-    if object_id in {"kxConflict", "userConflict"}:
-        return "<CONFLICT>"
-    if object_id in {"dc01"}:
-        return "<DC_HOST>"
-    if object_id in {"krbtgt"}:
-        return "krbtgt"
-    return "<USER>"
+def display_account(object_id, fallback="userA"):
+    return object_id or fallback
+
+
+def infer_account_from_name(name):
+    text = str(name or "")
+    if not text:
+        return "userA"
+    if "\\" in text:
+        return text.rsplit("\\", 1)[-1] or "userA"
+    if "@" in text:
+        return text.split("@", 1)[0] or "userA"
+    if text.startswith("CN="):
+        return text[3:].split(",", 1)[0].replace("\\", "") or "userA"
+    if "/" in text:
+        return text.rstrip("/").rsplit("/", 1)[-1] or "userA"
+    return text.strip("{}") or "userA"
 
 
 def minimal_ldap_setup(test, object_id, obj):
     test_id = test["id"]
     name = test["input"].get("request", {}).get("name", "")
-    placeholder = account_placeholder(object_id)
+    account = display_account(object_id, infer_account_from_name(name))
     if test_id.startswith("ldap_guid_"):
-        return f"Создать пользователя {placeholder} и скопировать его objectGUID."
+        return f"Создать пользователя {account} и скопировать его objectGUID."
     if "object_sid" in test_id:
-        return f"Создать пользователя {placeholder} и скопировать его objectSid."
+        return f"Создать пользователя {account} и скопировать его objectSid."
     if "canonical" in test_id:
-        return f"Создать пользователя {placeholder} и скопировать его canonicalName."
+        return f"Создать пользователя {account} и скопировать его canonicalName."
     if "dn_" in test_id or "distinguished" in test_id or name.startswith("CN="):
-        return f"Создать пользователя {placeholder} и скопировать его distinguishedName."
+        return f"Создать пользователя {account} и скопировать его distinguishedName."
     if "display" in test_id:
-        return f"Создать пользователя {placeholder} с displayName={placeholder} Display."
+        return f"Создать пользователя {account} с displayName={obj.get('displayName') or account}."
     if "\\\\" in name or "\\" in name or "downlevel" in test_id:
-        return f"Создать пользователя {placeholder} с sAMAccountName={placeholder} в домене <DOMAIN_NETBIOS>."
+        return f"Создать пользователя {account} с sAMAccountName={account} в домене <DOMAIN_NETBIOS>."
     if "@" in name or "upn" in test_id:
-        return f"Создать пользователя {placeholder} с userPrincipalName={placeholder}@<DOMAIN_FQDN>."
-    return f"Создать пользователя {placeholder} с sAMAccountName={placeholder}."
+        return f"Создать пользователя {account} с userPrincipalName={account}@<DOMAIN_FQDN>."
+    return f"Создать пользователя {account} с sAMAccountName={account}."
 
 
-def minimal_kerberos_setup(test):
+def minimal_kerberos_setup(test, object_id=None):
     test_id = test["id"]
+    account = display_account(object_id, infer_account_from_name("".join((test["input"].get("cname") or test["input"].get("sname") or {}).get("name_string") or [])))
     if "objectguid" in test_id:
-        return "Создать пользователя <USER> и скопировать его objectGUID."
+        return f"Создать пользователя {account} и скопировать его objectGUID."
     if "objectsid" in test_id:
-        return "Создать пользователя <USER> и скопировать его objectSid."
+        return f"Создать пользователя {account} и скопировать его objectSid."
     if "canonical" in test_id:
-        return "Создать пользователя <USER> и скопировать его canonicalName."
+        return f"Создать пользователя {account} и скопировать его canonicalName."
     if "display" in test_id:
-        return "Создать пользователя <USER> с displayName=<USER> Display."
+        return f"Создать пользователя {account} с displayName={account} Display."
     if "implicit_upn" in test_id or "upnset_generated" in test_id:
-        return "Создать пользователя <USER> с sAMAccountName=<USER> и пустым userPrincipalName."
+        return f"Создать пользователя {account} с sAMAccountName={account} и пустым userPrincipalName."
     if "upn_conflict" in test_id:
-        return "Создать пользователя <OWNER> с sAMAccountName=<OWNER> и пустым userPrincipalName; создать пользователя <CONFLICT> с userPrincipalName=<OWNER>@<DOMAIN_FQDN>."
+        return "Создать пользователя kxOwner с sAMAccountName=kxOwner и пустым userPrincipalName; создать пользователя kxConflict с userPrincipalName=kxOwner@<DOMAIN_FQDN>."
     if "upnset_explicit" in test_id:
-        return "Создать пользователя <USER> с sAMAccountName=<USER> и userPrincipalName=<CONFLICT>@<DOMAIN_FQDN>."
+        return "Создать пользователя kxUpnSet с sAMAccountName=kxUpnSet и userPrincipalName=kxUpnSetX@<DOMAIN_FQDN>."
     if "short_upn" in test_id or "upn_base" in test_id:
-        return "Создать пользователя <USER> с userPrincipalName=<USER>@<DOMAIN_FQDN>."
-    if "dn_" in test_id or "_dn_" in test_id:
-        return "Создать пользователя <USER> и скопировать его distinguishedName."
+        return f"Создать пользователя {account} с userPrincipalName={account}@<DOMAIN_FQDN>."
     if "spn_client" in test_id:
-        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>."
+        return "Создать сервисную учетную запись kxSvc и назначить ей SPN HTTP/<SERVICE_HOST>."
     if "http" in test_id or "host" in test_id or "cifs_dc" in test_id:
-        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>; подготовить клиента для получения TGT."
+        service_account = "dc01" if "cifs_dc" in test_id else "kxSvc"
+        spn = "CIFS/<DC_HOST>" if "cifs_dc" in test_id else "HTTP/<SERVICE_HOST>"
+        return f"Создать сервисную учетную запись {service_account} и назначить ей SPN {spn}; подготовить клиента для получения TGT."
+    if "cname_as_cname_dn" in test_id:
+        return f"Создать пользователя {account} и скопировать его distinguishedName."
     if "nospn" in test_id:
-        return "Создать учетную запись <ACCOUNT> без servicePrincipalName."
+        return "Создать учетную запись kxNoSpn без servicePrincipalName."
     if "krbtgt" in test_id:
         return "Создать или использовать встроенную учетную запись krbtgt в домене <DOMAIN_FQDN>."
     if "machine" in test_id:
-        return "Создать объект контроллера домена <DC_HOST> с sAMAccountName=<DC_HOST>$."
+        return "Создать объект контроллера домена dc01 с sAMAccountName=<DC_HOST>$."
     if "downlevel" in test_id or "dns_backslash" in test_id:
-        return "Создать пользователя <USER> с sAMAccountName=<USER> в домене <DOMAIN_NETBIOS>."
+        return f"Создать пользователя {account} с sAMAccountName={account} в домене <DOMAIN_NETBIOS>."
     if "svc_sam" in test_id or "svc_upn" in test_id:
-        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>."
-    return "Создать пользователя <USER> с sAMAccountName=<USER>."
+        return "Создать сервисную учетную запись kxSvc и назначить ей SPN HTTP/<SERVICE_HOST>."
+    return f"Создать пользователя {account} с sAMAccountName={account}."
 
 
 def object_reason(obj):
@@ -748,12 +733,12 @@ def expected_result_for_readme(test):
     matched = expected.get("matched_object_id")
     if expected.get("resolved"):
         if matched in {"kxSvc", "svcUser", "dc01"} or (test["input"].get("principal_field") or "") == "sname":
-            return "найден сервисный объект <SERVICE_ACCOUNT>"
+            return f"найден сервисный объект {display_account(matched, 'kxSvc')}"
         if matched in {"kxConflict", "userConflict"}:
-            return "выбран объект <CONFLICT>"
+            return f"выбран объект {matched}"
         if "implicit_upn" in test["id"] or "upnset_generated" in test["id"]:
-            return "найден объект <USER> через generated UPN"
-        return f"найден объект {account_placeholder(matched or 'user')}"
+            return f"найден объект {display_account(matched, 'kxImplicit')} через generated UPN"
+        return f"найден объект {display_account(matched, 'userA')}"
     if expected.get("reason") == "kdc_result_unknown":
         return "результат principal lookup не определен"
     return "объект не найден"
@@ -829,7 +814,7 @@ def kerberos_name_string_for_readme(test, name_string):
 
 
 def kerberos_setup_step(test, objects_by_id):
-    return minimal_kerberos_setup(test)
+    return minimal_kerberos_setup(test, object_id_from_test(test, objects_by_id))
 
 
 def readme_result(test):
