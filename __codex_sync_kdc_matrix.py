@@ -556,6 +556,127 @@ def compact_object_fields(obj):
     return ", ".join(parts)
 
 
+def name_type_display(value):
+    by_value = {number: name.replace("_", "-") for name, number in NAME_TYPES.items()}
+    return f"{value} / {by_value.get(value, 'UNKNOWN')}"
+
+
+def placeholder_domain(value):
+    if value is None:
+        return ""
+    text = str(value)
+    replacements = [
+        ("kxConflict", "<CONFLICT>"),
+        ("kxOwner", "<OWNER>"),
+        ("userConflict", "<CONFLICT>"),
+        ("userImplicitOwner", "<OWNER>"),
+        ("kxSvc", "<SERVICE_ACCOUNT>"),
+        ("svcUser", "<SERVICE_ACCOUNT>"),
+        ("kxNoSpn", "<ACCOUNT>"),
+        ("kxImplicit", "<USER>"),
+        ("kxUpnSetX", "<USER>"),
+        ("kxUpnSet", "<USER>"),
+        ("kxAlias", "<USER>"),
+        ("kxShort", "<USER>"),
+        ("kxBase", "<USER>"),
+        ("userImplicit", "<USER>"),
+        ("userUpnSetX", "<USER>"),
+        ("userUpnSet", "<USER>"),
+        ("userUpnAlias", "<USER>"),
+        ("user3", "<USER>"),
+        ("userA", "<USER>"),
+        ("userB", "<USER>"),
+        ("KX Base", "<USER> Display"),
+        ("PASTUKHOV.LAB", "<REALM>"),
+        ("pastukhov.lab", "<DOMAIN_FQDN>"),
+        ("DOMAIN3.LAB", "<REALM>"),
+        ("domain3.lab", "<DOMAIN_FQDN>"),
+        ("PASTUKHOV", "<DOMAIN_NETBIOS>"),
+        ("DOMAIN3", "<DOMAIN_NETBIOS>"),
+        ("10-23-RP-DC-01", "<DC_HOST>"),
+        ("10-23-rp-dc-01", "<DC_HOST>"),
+        ("kxspn22", "<SERVICE_HOST>"),
+    ]
+    for old, new in replacements:
+        text = text.replace(old, new)
+    text = re.sub(r"DC=[^,]+,DC=[^,]+", "DC=<DOMAIN_COMPONENT>,DC=<DOMAIN_COMPONENT>", text)
+    return text
+
+
+def account_placeholder(object_id, service=False):
+    if object_id in {"kxSvc", "svcUser"} or service:
+        return "<SERVICE_ACCOUNT>"
+    if object_id in {"kxNoSpn"}:
+        return "<ACCOUNT>"
+    if object_id in {"kxOwner", "userImplicitOwner"}:
+        return "<OWNER>"
+    if object_id in {"kxConflict", "userConflict"}:
+        return "<CONFLICT>"
+    if object_id in {"dc01"}:
+        return "<DC_HOST>"
+    if object_id in {"krbtgt"}:
+        return "krbtgt"
+    return "<USER>"
+
+
+def minimal_ldap_setup(test, object_id, obj):
+    test_id = test["id"]
+    name = test["input"].get("request", {}).get("name", "")
+    placeholder = account_placeholder(object_id)
+    if test_id.startswith("ldap_guid_"):
+        return f"Создать пользователя {placeholder} и скопировать его objectGUID."
+    if "object_sid" in test_id:
+        return f"Создать пользователя {placeholder} и скопировать его objectSid."
+    if "canonical" in test_id:
+        return f"Создать пользователя {placeholder} и скопировать его canonicalName."
+    if "dn_" in test_id or "distinguished" in test_id or name.startswith("CN="):
+        return f"Создать пользователя {placeholder} и скопировать его distinguishedName."
+    if "display" in test_id:
+        return f"Создать пользователя {placeholder} с displayName={placeholder} Display."
+    if "\\\\" in name or "\\" in name or "downlevel" in test_id:
+        return f"Создать пользователя {placeholder} с sAMAccountName={placeholder} в домене <DOMAIN_NETBIOS>."
+    if "@" in name or "upn" in test_id:
+        return f"Создать пользователя {placeholder} с userPrincipalName={placeholder}@<DOMAIN_FQDN>."
+    return f"Создать пользователя {placeholder} с sAMAccountName={placeholder}."
+
+
+def minimal_kerberos_setup(test):
+    test_id = test["id"]
+    if "objectguid" in test_id:
+        return "Создать пользователя <USER> и скопировать его objectGUID."
+    if "objectsid" in test_id:
+        return "Создать пользователя <USER> и скопировать его objectSid."
+    if "canonical" in test_id:
+        return "Создать пользователя <USER> и скопировать его canonicalName."
+    if "display" in test_id:
+        return "Создать пользователя <USER> с displayName=<USER> Display."
+    if "implicit_upn" in test_id or "upnset_generated" in test_id:
+        return "Создать пользователя <USER> с sAMAccountName=<USER> и пустым userPrincipalName."
+    if "upn_conflict" in test_id:
+        return "Создать пользователя <OWNER> с sAMAccountName=<OWNER> и пустым userPrincipalName; создать пользователя <CONFLICT> с userPrincipalName=<OWNER>@<DOMAIN_FQDN>."
+    if "upnset_explicit" in test_id:
+        return "Создать пользователя <USER> с sAMAccountName=<USER> и userPrincipalName=<CONFLICT>@<DOMAIN_FQDN>."
+    if "short_upn" in test_id or "upn_base" in test_id:
+        return "Создать пользователя <USER> с userPrincipalName=<USER>@<DOMAIN_FQDN>."
+    if "dn_" in test_id or "_dn_" in test_id:
+        return "Создать пользователя <USER> и скопировать его distinguishedName."
+    if "spn_client" in test_id:
+        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>."
+    if "http" in test_id or "host" in test_id or "cifs_dc" in test_id:
+        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>; подготовить клиента для получения TGT."
+    if "nospn" in test_id:
+        return "Создать учетную запись <ACCOUNT> без servicePrincipalName."
+    if "krbtgt" in test_id:
+        return "Создать или использовать встроенную учетную запись krbtgt в домене <DOMAIN_FQDN>."
+    if "machine" in test_id:
+        return "Создать объект контроллера домена <DC_HOST> с sAMAccountName=<DC_HOST>$."
+    if "downlevel" in test_id or "dns_backslash" in test_id:
+        return "Создать пользователя <USER> с sAMAccountName=<USER> в домене <DOMAIN_NETBIOS>."
+    if "svc_sam" in test_id or "svc_upn" in test_id:
+        return "Создать сервисную учетную запись <SERVICE_ACCOUNT> и назначить ей SPN HTTP/<SERVICE_HOST>."
+    return "Создать пользователя <USER> с sAMAccountName=<USER>."
+
+
 def object_reason(obj):
     reasons = {
         "kxBase": "Базовый пользователь из KDC-прогона для ordinary SAM, UPN, DN и negative cname cases.",
@@ -595,14 +716,13 @@ def rebuild_object_table(readme, snapshot):
 
 def readme_description(test, objects_by_id):
     inp = test["input"]
-    expected = test["expected"]
     if inp.get("protocol") == "LDAP":
         name = ldap_request_value_for_readme(test)
         setup = ldap_setup_step(test, objects_by_id)
         result = expected_result_for_readme(test)
         return (
             f"1. {setup}<br>"
-            f"2. Выполнить LDAP BindRequest.name={md_cell(name)}.<br>"
+            f"2. Выполнить LDAP Simple Bind с BindRequest.name=\"{md_cell(name)}\".<br>"
             f"3. Ожидаемый результат: {result}."
         )
     principal_field = (inp.get("principal_field") or "").casefold()
@@ -613,20 +733,29 @@ def readme_description(test, objects_by_id):
     name_string = principal.get("name_string") or []
     setup = kerberos_setup_step(test, objects_by_id)
     result = expected_result_for_readme(test)
+    message = inp.get("message_type")
+    principal_kind = "клиентским principal" if principal_field == "cname" else "server principal"
+    name_type_text = name_type_display(name_type)
     return (
         f"1. {setup}<br>"
-        f"2. Выполнить {inp.get('message_type')} {principal_field} с name_string={kerberos_name_string_for_readme(test, name_string)}, realm={inp.get('realm')}, NameType={name_type}.<br>"
+        f"2. Выполнить Kerberos {message} с {principal_kind}: {principal_field}.name-type={name_type_text}, {principal_field}.name-string={kerberos_name_string_for_readme(test, name_string)}, realm=<REALM>.<br>"
         f"3. Ожидаемый результат: {result}."
     )
 
 
 def expected_result_for_readme(test):
     expected = test["expected"]
-    documented_format = (test.get("format") or "").split(";")[0]
+    matched = expected.get("matched_object_id")
     if expected.get("resolved"):
-        return f"найден объект {expected.get('matched_object_id')} через {expected.get('matched_format') or documented_format}"
+        if matched in {"kxSvc", "svcUser", "dc01"} or (test["input"].get("principal_field") or "") == "sname":
+            return "найден сервисный объект <SERVICE_ACCOUNT>"
+        if matched in {"kxConflict", "userConflict"}:
+            return "выбран объект <CONFLICT>"
+        if "implicit_upn" in test["id"] or "upnset_generated" in test["id"]:
+            return "найден объект <USER> через generated UPN"
+        return f"найден объект {account_placeholder(matched or 'user')}"
     if expected.get("reason") == "kdc_result_unknown":
-        return "результат principal lookup не определен."
+        return "результат principal lookup не определен"
     return "объект не найден"
 
 
@@ -676,82 +805,86 @@ def ldap_setup_step(test, objects_by_id):
     object_id = object_id_from_test(test, objects_by_id)
     obj = objects_by_id.get(object_id or "")
     if obj:
-        object_type = "компьютер" if obj.get("object_type") == "computer" else "пользователя"
-        if test["id"].startswith("ldap_guid_"):
-            return f"Создать {object_type} {object_id} с полями: sAMAccountName={md_cell(obj.get('sAMAccountName'))}, userPrincipalName={md_cell(obj.get('userPrincipalName'))}, domainFQDN={md_cell(obj.get('domainFQDN'))}; скопировать его objectGUID."
-        if "object_sid" in test["id"]:
-            return f"Создать {object_type} {object_id} с полями: sAMAccountName={md_cell(obj.get('sAMAccountName'))}, userPrincipalName={md_cell(obj.get('userPrincipalName'))}, domainFQDN={md_cell(obj.get('domainFQDN'))}; скопировать его objectSid."
-        return f"Создать {object_type} {object_id} с полями: {compact_object_fields(obj)}."
-    return "Создать объект с полями, указанными во входном LDAP principal."
+        return minimal_ldap_setup(test, object_id, obj)
+    return "Создать пользователя <USER> с минимальными полями для проверяемого LDAP principal."
 
 
 def ldap_request_value_for_readme(test):
     name = test["input"].get("request", {}).get("name", "")
     if test["id"].startswith("ldap_guid_"):
-        object_id = test["expected"].get("matched_object_id") or object_id_from_test(test) or "пользователя"
-        return f"<objectGUID {object_id}>"
+        return "<objectGUID пользователя>"
     if "object_sid" in test["id"]:
-        object_id = test["expected"].get("matched_object_id") or object_id_from_test(test) or "пользователя"
-        return f"<objectSid {object_id}>"
-    return name
+        return "<objectSid пользователя>"
+    return placeholder_domain(name)
 
 
 def kerberos_name_string_for_readme(test, name_string):
     test_id = test["id"]
     if "objectguid" in test_id:
-        return '["<objectGUID пользователя kxBase>"]'
+        return '["<objectGUID пользователя>"]'
     if "objectsid" in test_id:
-        return '["<objectSid пользователя kxBase>"]'
-    return md_cell(json.dumps(name_string, ensure_ascii=False))
+        return '["<objectSid пользователя>"]'
+    replaced = [placeholder_domain(part) for part in name_string]
+    return md_cell(json.dumps(replaced, ensure_ascii=False))
 
 
 def kerberos_setup_step(test, objects_by_id):
-    test_id = test["id"]
-    expected = test["expected"]
-    matched = expected.get("matched_object_id")
-    fmt = expected.get("matched_format") or test.get("format") or ""
-    if "objectguid" in test_id:
-        return "Создать пользователя kxBase с sAMAccountName=kxBase и userPrincipalName=kxBase@pastukhov.lab; скопировать его objectGUID."
-    if "objectsid" in test_id:
-        return "Создать пользователя kxBase с sAMAccountName=kxBase и userPrincipalName=kxBase@pastukhov.lab; скопировать его objectSid."
-    if "canonical" in test_id:
-        return "Создать пользователя kxBase с canonicalName=pastukhov.lab/Users/kxBase."
-    if "display" in test_id:
-        return "Создать пользователя kxBase с displayName=KX Base."
-    if "spn_client" in test_id or "http" in test_id or "host" in test_id:
-        return "Создать сервисную учетную запись kxSvc с SPN HTTP/kxspn22.pastukhov.lab, HTTP/kxspn22, HOST/kxspn22.pastukhov.lab и HOST/kxspn22."
-    if "nospn" in test_id:
-        return "Создать учетную запись kxNoSpn с sAMAccountName=kxNoSpn и userPrincipalName=kxNoSpn@pastukhov.lab; servicePrincipalName оставить пустым."
-    if "implicit_upn" in test_id:
-        return "Создать пользователя kxImplicit с sAMAccountName=kxImplicit, domainFQDN=pastukhov.lab и пустым userPrincipalName."
-    if "upn_conflict" in test_id:
-        return "Создать kxOwner без userPrincipalName и kxConflict с userPrincipalName=kxOwner@pastukhov.lab."
-    if "upnset" in test_id:
-        return "Создать пользователя kxUpnSet с sAMAccountName=kxUpnSet и userPrincipalName=kxUpnSetX@pastukhov.lab."
-    if "short_upn" in test_id:
-        return "Создать пользователя kxAlias с sAMAccountName=kxAlias и userPrincipalName=kxShort@pastukhov.lab."
-    if "krbtgt" in test_id:
-        return "Создать или использовать встроенную учетную запись krbtgt в домене pastukhov.lab с sAMAccountName=krbtgt и domainFQDN=pastukhov.lab."
-    if "machine" in test_id or "cifs_dc" in test_id or matched == "dc01":
-        return "Создать объект контроллера домена dc01 с sAMAccountName=10-23-RP-DC-01$ и SPN для HOST/CIFS имени контроллера."
-    if "downlevel" in test_id:
-        return "Создать пользователя kxBase с sAMAccountName=kxBase, domainNetBIOS=PASTUKHOV и domainFQDN=pastukhov.lab."
-    if "dns_backslash" in test_id:
-        return "Создать пользователя kxBase с sAMAccountName=kxBase и domainFQDN=pastukhov.lab."
-    if matched == "kxSvc" or "svc" in test_id:
-        return "Создать сервисную учетную запись kxSvc с sAMAccountName=kxSvc, userPrincipalName=kxSvc@pastukhov.lab и назначенными SPN."
-    if matched == "kxBase" or "sam_base" in test_id or "upn_base" in test_id or "dn" in test_id:
-        return "Создать пользователя kxBase с sAMAccountName=kxBase, userPrincipalName=kxBase@pastukhov.lab и distinguishedName=CN=kxBase,CN=Users,DC=pastukhov,DC=lab."
-    object_id = object_id_from_test(test, objects_by_id)
-    obj = objects_by_id.get(object_id or "")
-    if obj:
-        object_type = "компьютер" if obj.get("object_type") == "computer" else "учетную запись"
-        return f"Создать {object_type} {object_id} с полями: {compact_object_fields(obj)}."
-    return f"Создать тестовую учетную запись с полями: sAMAccountName=<account>, userPrincipalName=<account>@pastukhov.lab, domainFQDN=pastukhov.lab; использовать ее для проверки {fmt}."
+    return minimal_kerberos_setup(test)
 
 
 def readme_result(test):
     return expected_result_for_readme(test)
+
+
+def readme_title(test):
+    test_id = test["id"]
+    if not test_id.startswith("kdc_"):
+        return test["title"]
+    inp = test["input"]
+    message = inp.get("message_type")
+    field = (inp.get("principal_field") or ("cname" if message == "AS-REQ" else "sname")).casefold()
+    prefix = f"Kerberos {message} {field}"
+    resolved = test["expected"].get("resolved")
+    service = "server" if field == "sname" else "клиентский"
+    if "objectguid" in test_id:
+        return f"{prefix}: objectGUID не используется как {service} principal"
+    if "objectsid" in test_id:
+        return f"{prefix}: objectSid не используется как {service} principal"
+    if "implicit_upn" in test_id or "upnset_generated" in test_id:
+        return f"{prefix}: generated UPN находит пользователя без явного UPN" if resolved else f"{prefix}: generated UPN не находит пользователя"
+    if "upn_conflict" in test_id:
+        return f"{prefix}: explicit UPN имеет приоритет над generated UPN" if resolved else f"{prefix}: generated UPN не выбирается при explicit UPN конфликте"
+    if "upnset_explicit" in test_id:
+        return f"{prefix}: explicit UPN используется вместо generated UPN"
+    if "short_upn" in test_id:
+        return f"{prefix}: короткое имя может находиться через UPN prefix" if resolved else f"{prefix}: короткое имя не находится без подходящего UPN"
+    if "spn_client" in test_id:
+        return f"{prefix}: SPN может быть принят как client principal" if resolved else f"{prefix}: неподходящий SPN не принимается как client principal"
+    if "http" in test_id or "host" in test_id or "cifs_dc" in test_id:
+        return f"{prefix}: SPN находит сервисную учетную запись" if resolved else f"{prefix}: неподходящий SPN не находит сервис"
+    if "nospn" in test_id:
+        return f"{prefix}: учетная запись без SPN не находится как сервис"
+    if "krbtgt" in test_id:
+        return f"{prefix}: krbtgt principal находит krbtgt" if resolved else f"{prefix}: неподходящий krbtgt principal не находится"
+    if "machine" in test_id:
+        return f"{prefix}: machine account находится по имени без $" if resolved else f"{prefix}: machine account без подходящего имени не находится"
+    if "downlevel" in test_id:
+        return f"{prefix}: down-level имя находит учетную запись" if resolved else f"{prefix}: down-level имя не используется как {service} principal"
+    if "dns_backslash" in test_id:
+        return f"{prefix}: DNS-домен с backslash находит учетную запись" if resolved else f"{prefix}: DNS-домен с backslash не используется как client principal"
+    if "dn" in test_id:
+        return f"{prefix}: distinguishedName находит пользователя" if resolved else f"{prefix}: distinguishedName не используется как {service} principal"
+    if "canonical" in test_id:
+        return f"{prefix}: canonicalName не используется как {service} principal"
+    if "display" in test_id:
+        return f"{prefix}: displayName не используется как {service} principal"
+    if "upn_base" in test_id:
+        return f"{prefix}: UPN находит пользователя" if resolved else f"{prefix}: неподходящий UPN не находит пользователя"
+    if "sam_base" in test_id or "svc_sam" in test_id:
+        return f"{prefix}: обычный SAM находится как {service} principal" if resolved else f"{prefix}: обычный SAM не находится как {service} principal"
+    if "svc_upn" in test_id:
+        return f"{prefix}: UPN сервисной учетной записи не заменяет SPN" if not resolved else f"{prefix}: UPN сервисной учетной записи находит сервис"
+    return f"{prefix}: проверка principal lookup"
 
 
 def test_source(test):
@@ -790,14 +923,14 @@ def rebuild_test_sections(readme, tests):
             "",
             "## Таблица тестов и corner cases",
             "",
-            "| № | Название | Описание | Формат / ветка | Ожидаемый результат | Откуда взяли | Раздел | id |",
-            "|---|---|---|---|---|---|---|---|",
+            "| № | Название | Описание | Формат / ветка | Ожидаемый результат | Откуда взяли | Раздел |",
+            "|---|---|---|---|---|---|---|",
         ]
     )
     for index, test in enumerate(tests, 1):
         section = CATEGORY_LABELS.get(test["category"], test["category"])
         lines.append(
-            f"| {index} | {md_cell(test['title'])} | {readme_description(test, objects_by_id)} | {md_cell(test.get('format') or '-')} | {md_cell(readme_result(test))} | {md_cell(test_source(test))} | {md_cell(section)} | `{md_cell(test['id'])}` |"
+            f"| {index} | {md_cell(readme_title(test))} | {readme_description(test, objects_by_id)} | {md_cell(test.get('format') or '-')} | {md_cell(readme_result(test))} | {md_cell(test_source(test))} | {md_cell(section)} |"
         )
     lines.append("")
     return readme[:start] + "\n".join(lines) + "\n" + readme[end:]
