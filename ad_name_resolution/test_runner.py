@@ -28,7 +28,7 @@ CATEGORY_LABELS = {
     "ldap_dn_special": "LDAP: DN со спецсимволами",
     "ldap_corner": "LDAP: корнеры и приоритет форматов",
     "kerberos_client_lookup": "Kerberos: AS-REQ / Client Principal Lookup",
-    "kerberos_server_lookup": "Kerberos: TGS-REQ / Server Principal Lookup",
+    "kerberos_server_lookup": "Kerberos: Server Principal Lookup",
 }
 
 
@@ -69,7 +69,11 @@ def input_summary(test: TestCase) -> str:
         return f'BindRequest.name="{request.get("name", "")}"'
     if event.get("protocol") == "Kerberos":
         message_type = event.get("message_type")
-        principal_key = "cname" if message_type == "AS-REQ" else "sname"
+        principal_field = (event.get("principal_field") or "").casefold()
+        if principal_field in {"cname", "sname"}:
+            principal_key = principal_field
+        else:
+            principal_key = "cname" if message_type == "AS-REQ" else "sname"
         principal = event.get(principal_key) or {}
         name_string = ",".join(principal.get("name_string") or [])
         return (
@@ -83,10 +87,11 @@ def input_summary(test: TestCase) -> str:
 
 def expected_summary(test: TestCase) -> str:
     expected = test.expected
+    fallback_format = (test.format or "-").split(";")[0]
     if expected.get("resolved") is True:
-        return f"ожидается объект {expected.get('matched_object_id')} ({expected.get('matched_format')})"
-    detected = expected.get("detected_format") or expected.get("matched_format") or "-"
-    return f"ожидается {expected.get('reason')} (формат: {detected})"
+        return f"ожидается объект {expected.get('matched_object_id')} ({expected.get('matched_format') or fallback_format})"
+    detected = expected.get("detected_format") or expected.get("matched_format") or fallback_format
+    return f"ожидается {expected.get('reason') or 'object_not_found'} (формат: {detected})"
 
 
 def run_test(
