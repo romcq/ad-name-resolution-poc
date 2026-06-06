@@ -677,6 +677,43 @@ def object_reason(obj):
     return reasons.get(obj["id"], "Объект локального AD snapshot для тестов прототипа.")
 
 
+def rebuild_kerberos_name_type_section(readme):
+    start_marker = "Поддержанные в прототипе `name_type`:"
+    fallback_marker = "Поддержанные в прототипе Kerberos `name_type` разделены на две группы."
+    try:
+        start = readme.index(start_marker)
+    except ValueError:
+        start = readme.index(fallback_marker)
+    end = readme.index("`realm` оставлен отдельным полем", start)
+    lines = [
+        "Поддержанные в прототипе Kerberos `name_type` разделены на две группы.",
+        "",
+        "Базовые типы исходной логики прототипа:",
+        "",
+        "- `1 / NT-PRINCIPAL`",
+        "- `2 / NT-SRV-INST`",
+        "- `3 / NT-SRV-HST`",
+        "- `10 / NT-ENTERPRISE`",
+        "",
+        "Дополнительно учтённые типы после активного KDC-прогона:",
+        "",
+        "- `0 / NT-UNKNOWN`",
+        "- `4 / NT-SRV-XHST`",
+        "- `5 / NT-UID`",
+        "- `6 / NT-X500-PRINCIPAL`",
+        "- `7 / NT-SMTP-NAME`",
+        "- `11 / NT-WELLKNOWN`",
+        "- `12 / NT-SRV-HST-DOMAIN`",
+        "- `-128 / NT-MS-PRINCIPAL`",
+        "- `-129 / NT-MS-PRINCIPAL-AND-ID`",
+        "- `-130 / NT-ENT-PRINCIPAL-AND-ID`",
+        "",
+        "Дополнительные `NameType` добавлены не как произвольное расширение прототипа, а по результатам активного прогона Kerberos-запросов к Windows KDC. Для части типов подтверждены positive cases, для части - negative cases. Поэтому \"учтён\" не всегда означает, что объект должен быть найден: для некоторых `NameType` корректным результатом является `object_not_found` / negative case.",
+        "",
+    ]
+    return readme[:start] + "\n".join(lines) + readme[end:]
+
+
 def rebuild_object_table(readme, snapshot):
     start = readme.index("## Объекты в базе")
     try:
@@ -945,6 +982,7 @@ def main():
     removed_old_kdc, added_tests = merge_tests(tests_data, kdc_tests)
     validate(tests_data, snapshot)
     readme = README_PATH.read_text(encoding="utf-8")
+    readme = rebuild_kerberos_name_type_section(readme)
     readme = rebuild_object_table(readme, snapshot)
     readme = rebuild_test_sections(readme, tests_data["tests"])
     dump_json(SNAPSHOT_PATH, snapshot)

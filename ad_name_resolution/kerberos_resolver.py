@@ -51,6 +51,7 @@ AS_ACCOUNT_NAME_TYPES = {
     NT_UNKNOWN,
     NT_PRINCIPAL,
     NT_SRV_HST,
+    NT_SRV_XHST,
     NT_SMTP_NAME,
     NT_WELLKNOWN,
     NT_SRV_HST_DOMAIN,
@@ -73,6 +74,7 @@ SERVER_ACCOUNT_NAME_TYPES = {
     NT_PRINCIPAL,
     NT_SRV_INST,
     NT_SRV_HST,
+    NT_SRV_XHST,
     NT_SMTP_NAME,
     NT_WELLKNOWN,
     NT_SRV_HST_DOMAIN,
@@ -165,6 +167,10 @@ def resolve_kerberos_as_req_sname(event: dict, repository: ADSnapshotRepository)
     trace: list[dict] = []
     if not components or not isinstance(name_type, int):
         return unsupported_result(protocol="Kerberos", algorithm_branch=SERVER_BRANCH, input_field="sname", input_value=input_value, reason="invalid_input", trace=trace)
+    if len(components) == 1 and _is_krbtgt_principal(components):
+        result = _match_sam("Kerberos", SERVER_BRANCH, "sname", input_value, f"{NAME_TYPE_NAMES[name_type]}/krbtgt/sAMAccountName", "krbtgt", realm, repository, trace)
+        if result is not None:
+            return result
     if name_type in SERVER_SERVICE_NAME_TYPES:
         return _resolve_server_service_like(name_type, components, realm, repository, trace)
     if name_type in {NT_ENTERPRISE, NT_MS_PRINCIPAL, NT_MS_PRINCIPAL_AND_ID}:
@@ -283,6 +289,14 @@ def _resolve_as_nt_enterprise(
                 result = _match_sam("Kerberos", CLIENT_BRANCH, "cname", input_value, fmt, account_value, realm, repository, trace)
                 if result is not None:
                     return result
+    if format_prefix == "NT-ENTERPRISE" and _is_simple_account_name(value):
+        for fmt, account_value in [
+            (f"{format_prefix}/sAMAccountName", value),
+            (f"{format_prefix}/sAMAccountName+$", f"{value}$"),
+        ]:
+            result = _match_sam("Kerberos", CLIENT_BRANCH, "cname", input_value, fmt, account_value, realm, repository, trace)
+            if result is not None:
+                return result
     # Если прямые проверки не нашли объект, по статье дальше возможен CrackNames.
     # В рамках ITDR snapshot-модели отдельный CrackNames не реализуется:
     # полные идентификаторы уже ищутся по доступному AD snapshot, а короткие
@@ -859,6 +873,36 @@ def _resolve_matches(
 
 def _principal_to_string(components: list[str]) -> str:
     return "/".join(str(component) for component in components)
+
+
+def _is_simple_account_name(value: str) -> bool:
+    text = str(value or "").strip()
+    if not text or any(separator in text for separator in ("@", "\\", "/")):
+        return False
+    lowered = text.casefold()
+    if lowered.startswith("s-1-") or looks_like_dn(text):
+        return False
+    if text.startswith("{") and text.endswith("}"):
+        return False
+    return not any(char.isspace() for char in text)
+
+
+def _is_krbtgt_principal(components: list[str]) -> bool:
+    if not components:
+        return False
+
+    normalized = [str(component).casefold() for component in components if component]
+
+    if normalized == ["krbtgt"]:
+        return True
+
+    if len(normalized) == 2 and normalized[0] == "krbtgt":
+        return True
+
+    if len(normalized) == 1 and normalized[0].startswith("krbtgt/"):
+        return True
+
+    return False
 
 
 def _looks_like_ldap_dn_components(components: list[str]) -> bool:
