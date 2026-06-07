@@ -913,7 +913,30 @@ def kerberos_name_string_for_readme(test, name_string):
         return '["<objectGUID пользователя>"]'
     if "objectsid" in test_id:
         return '["<objectSid пользователя>"]'
-    return md_cell(json.dumps(name_string, ensure_ascii=False))
+    rendered = md_cell(json.dumps(name_string, ensure_ascii=False))
+    context = kerberos_principal_context_for_readme(test, name_string)
+    if context:
+        return f"{rendered} ({context})"
+    return rendered
+
+
+def kerberos_principal_context_for_readme(test, name_string):
+    if not name_string:
+        return ""
+    # Keep the real test principal intact, but make the test domain explicit
+    # for short names such as ["userA"] or ["HTTP", "userA"].
+    concrete_or_non_account_chars = (".", "@", "\\", "=", ",", " ", "{", "}", "<", ">")
+    if any(any(char in part for char in concrete_or_non_account_chars) for part in name_string):
+        return ""
+    realm = test["input"].get("realm") or ""
+    domain_by_realm = {
+        "PASTUKHOV.LAB": "pastukhov.lab",
+        "DOMAIN3.LAB": "domain3.lab",
+    }
+    domain = domain_by_realm.get(realm.upper())
+    if not domain:
+        return ""
+    return f"контекст: домен {domain}"
 
 
 def kerberos_setup_step(test, objects_by_id):
