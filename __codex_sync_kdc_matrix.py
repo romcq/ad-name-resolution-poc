@@ -105,7 +105,10 @@ def load_json(path):
 
 
 def dump_json(path, data):
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    new_text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    if path.exists() and path.read_text(encoding="utf-8") == new_text:
+        return
+    path.write_text(new_text, encoding="utf-8")
 
 
 def load_kdc_rows():
@@ -441,6 +444,34 @@ def name_type_summary(rows):
     return ", ".join(dict.fromkeys(row["name_type"] for row in ordered))
 
 
+def name_type_summary_for_readme(rows):
+    ordered = sorted(rows, key=lambda row: int(row["name_type_value"]))
+    parts = []
+    seen = set()
+    for row in ordered:
+        name = row["name_type"]
+        if name in seen:
+            continue
+        seen.add(name)
+        parts.append(f"{row['name_type_value']}/{name.replace('_', '-')}")
+    return ", ".join(parts)
+
+
+def name_type_bullets_for_readme(rows):
+    items = name_type_summary_for_readme(rows).split(", ")
+    return "".join(f"<br>&nbsp;&nbsp;- {item}" for item in items if item)
+
+
+def kdc_format_summary(row, selected, rows, semantic):
+    outcome = "positive lookup" if semantic == "true" else "negative lookup"
+    return (
+        f"Формат результата: {matched_format(row, selected)}<br>"
+        f"KDC-прогон:<br>"
+        f"- исход: {outcome}<br>"
+        f"- NameType с таким же исходом:{name_type_bullets_for_readme(rows)}"
+    )
+
+
 def representative_row(rows):
     preferred = [
         "NT_ENTERPRISE",
@@ -469,10 +500,8 @@ def build_kdc_tests(rows):
         group = grouped[key]
         semantic, selected, _ = semantic_for_group(group)
         row = representative_row(group)
-        confirmed_types = name_type_summary(group)
-        fmt = f"{matched_format(row, selected)}; confirmed NameType: {confirmed_types}"
+        fmt = kdc_format_summary(row, selected, group, semantic)
         description = description_for(row, semantic, selected)
-        description = f"{description}; confirmed NameType: {confirmed_types}"
         test_id = compact_test_id_for(row, semantic, selected)
         if test_id not in COMPACT_KDC_TEST_IDS:
             continue
@@ -582,6 +611,13 @@ def placeholder_domain(value):
     return text
 
 
+def principal_string_from_test(test):
+    inp = test["input"]
+    field = (inp.get("principal_field") or ("cname" if inp.get("message_type") == "AS-REQ" else "sname")).casefold()
+    principal = inp.get(field) or {}
+    return "/".join(str(part) for part in principal.get("name_string") or [])
+
+
 def display_account(object_id, fallback="userA"):
     return object_id or fallback
 
@@ -616,15 +652,21 @@ def minimal_ldap_setup(test, object_id, obj):
     if "display" in test_id:
         return f"Создать пользователя {account} с displayName={obj.get('displayName') or account}."
     if "\\\\" in name or "\\" in name or "downlevel" in test_id:
-        return f"Создать пользователя {account} с sAMAccountName={account} в домене <DOMAIN_NETBIOS>."
+        return f"Создать пользователя {account} с sAMAccountName={obj.get('sAMAccountName') or account} в домене {obj.get('domainNetBIOS') or NETBIOS}."
     if "@" in name or "upn" in test_id:
-        return f"Создать пользователя {account} с userPrincipalName={account}@<DOMAIN_FQDN>."
+        upn = obj.get("userPrincipalName") or f"{account}@{obj.get('domainFQDN') or DOMAIN}"
+        return f"Создать пользователя {account} с userPrincipalName={upn}."
     return f"Создать пользователя {account} с sAMAccountName={account}."
 
 
-def minimal_kerberos_setup(test, object_id=None):
+def minimal_kerberos_setup(test, object_id=None, obj=None):
     test_id = test["id"]
     account = display_account(object_id, infer_account_from_name("".join((test["input"].get("cname") or test["input"].get("sname") or {}).get("name_string") or [])))
+    sam = (obj or {}).get("sAMAccountName") or account
+    domain_fqdn = (obj or {}).get("domainFQDN") or DOMAIN
+    domain_netbios = (obj or {}).get("domainNetBIOS") or NETBIOS
+    principal_string = principal_string_from_test(test)
+    service_spn = principal_string if "/" in principal_string else "HTTP/kxspn22"
     if "objectguid" in test_id:
         return f"Создать пользователя {account} и скопировать его objectGUID."
     if "objectsid" in test_id:
@@ -632,34 +674,41 @@ def minimal_kerberos_setup(test, object_id=None):
     if "canonical" in test_id:
         return f"Создать пользователя {account} и скопировать его canonicalName."
     if "display" in test_id:
-        return f"Создать пользователя {account} с displayName={account} Display."
+        display = (obj or {}).get("displayName") or account
+        sam_for_display = (obj or {}).get("sAMAccountName") or account
+        return f"Создать пользователя {object_id or account} с sAMAccountName={sam_for_display} и displayName={display}."
     if "implicit_upn" in test_id or "upnset_generated" in test_id:
+        if (obj or {}).get("userPrincipalName"):
+            return f"Создать пользователя {account} с sAMAccountName={sam} и userPrincipalName={(obj or {}).get('userPrincipalName')}."
         return f"Создать пользователя {account} с sAMAccountName={account} и пустым userPrincipalName."
     if "upn_conflict" in test_id:
-        return "Создать пользователя kxOwner с sAMAccountName=kxOwner и пустым userPrincipalName; создать пользователя kxConflict с userPrincipalName=kxOwner@<DOMAIN_FQDN>."
+        return "Создать пользователя kxOwner с sAMAccountName=kxOwner и пустым userPrincipalName; создать пользователя kxConflict с userPrincipalName=kxOwner@pastukhov.lab."
     if "upnset_explicit" in test_id:
-        return "Создать пользователя kxUpnSet с sAMAccountName=kxUpnSet и userPrincipalName=kxUpnSetX@<DOMAIN_FQDN>."
+        return "Создать пользователя kxUpnSet с sAMAccountName=kxUpnSet и userPrincipalName=kxUpnSetX@pastukhov.lab."
     if "short_upn" in test_id or "upn_base" in test_id:
-        return f"Создать пользователя {account} с userPrincipalName={account}@<DOMAIN_FQDN>."
+        upn = (obj or {}).get("userPrincipalName") or f"{account}@{domain_fqdn}"
+        return f"Создать пользователя {account} с userPrincipalName={upn}."
     if "spn_client" in test_id:
-        return "Создать сервисную учетную запись kxSvc и назначить ей SPN HTTP/<SERVICE_HOST>."
+        return f"Создать сервисную учетную запись kxSvc и назначить ей SPN {service_spn}."
     if "http" in test_id or "host" in test_id or "cifs_dc" in test_id:
         service_account = "dc01" if "cifs_dc" in test_id else "kxSvc"
-        spn = "CIFS/<DC_HOST>" if "cifs_dc" in test_id else "HTTP/<SERVICE_HOST>"
+        spn = service_spn
         return f"Создать сервисную учетную запись {service_account} и назначить ей SPN {spn}; подготовить клиента для получения TGT."
     if "cname_as_cname_dn" in test_id:
         return f"Создать пользователя {account} и скопировать его distinguishedName."
     if "nospn" in test_id:
         return "Создать учетную запись kxNoSpn без servicePrincipalName."
     if "krbtgt" in test_id:
-        return "Создать или использовать встроенную учетную запись krbtgt в домене <DOMAIN_FQDN>."
+        return "Создать или использовать встроенную учетную запись krbtgt в домене pastukhov.lab."
     if "machine" in test_id:
-        return "Создать объект контроллера домена dc01 с sAMAccountName=<DC_HOST>$."
+        return f"Создать объект контроллера домена dc01 с sAMAccountName={sam}."
     if "downlevel" in test_id or "dns_backslash" in test_id:
-        return f"Создать пользователя {account} с sAMAccountName={account} в домене <DOMAIN_NETBIOS>."
+        return f"Создать пользователя {account} с sAMAccountName={sam} в домене {domain_netbios}."
     if "svc_sam" in test_id or "svc_upn" in test_id:
-        return "Создать сервисную учетную запись kxSvc и назначить ей SPN HTTP/<SERVICE_HOST>."
-    return f"Создать пользователя {account} с sAMAccountName={account}."
+        return "Создать сервисную учетную запись kxSvc и назначить ей SPN HTTP/kxspn22."
+    if (obj or {}).get("object_type") == "computer":
+        return f"Создать объект контроллера домена {object_id or account} с sAMAccountName={sam}."
+    return f"Создать пользователя {account} с sAMAccountName={sam}."
 
 
 def object_reason(obj):
@@ -758,9 +807,10 @@ def readme_description(test, objects_by_id):
     message = inp.get("message_type")
     principal_kind = "клиентским principal" if principal_field == "cname" else "server principal"
     name_type_text = name_type_display(name_type)
+    realm = inp.get("realm") or ""
     return (
         f"1. {setup}<br>"
-        f"2. Выполнить Kerberos {message} с {principal_kind}: {principal_field}.name-type={name_type_text}, {principal_field}.name-string={kerberos_name_string_for_readme(test, name_string)}, realm=<REALM>.<br>"
+        f"2. Выполнить Kerberos {message} с {principal_kind}: {principal_field}.name-type={name_type_text}, {principal_field}.name-string={kerberos_name_string_for_readme(test, name_string)}, realm={md_cell(realm)}.<br>"
         f"3. Ожидаемый результат: {result}."
     )
 
@@ -787,6 +837,19 @@ def object_id_from_test(test, objects_by_id=None):
         return expected["matched_object_id"]
     test_id = test["id"]
     input_text = json.dumps(test.get("input", {}), ensure_ascii=False)
+    for obj in (objects_by_id or {}).values():
+        candidates = [
+            obj.get("sAMAccountName"),
+            obj.get("userPrincipalName"),
+            obj.get("distinguishedName"),
+            obj.get("canonicalName"),
+            obj.get("displayName"),
+            obj.get("objectGUID"),
+            obj.get("objectSid"),
+        ]
+        candidates.extend(obj.get("servicePrincipalName") or [])
+        if any(candidate and str(candidate).lower() in input_text.lower() for candidate in candidates):
+            return obj["id"]
     object_ids = list((objects_by_id or {}).keys()) or [
         "userA",
         "userB",
@@ -837,7 +900,7 @@ def ldap_request_value_for_readme(test):
         return "<objectGUID пользователя>"
     if "object_sid" in test["id"]:
         return "<objectSid пользователя>"
-    return placeholder_domain(name)
+    return name
 
 
 def kerberos_name_string_for_readme(test, name_string):
@@ -846,12 +909,12 @@ def kerberos_name_string_for_readme(test, name_string):
         return '["<objectGUID пользователя>"]'
     if "objectsid" in test_id:
         return '["<objectSid пользователя>"]'
-    replaced = [placeholder_domain(part) for part in name_string]
-    return md_cell(json.dumps(replaced, ensure_ascii=False))
+    return md_cell(json.dumps(name_string, ensure_ascii=False))
 
 
 def kerberos_setup_step(test, objects_by_id):
-    return minimal_kerberos_setup(test, object_id_from_test(test, objects_by_id))
+    object_id = object_id_from_test(test, objects_by_id)
+    return minimal_kerberos_setup(test, object_id, objects_by_id.get(object_id or ""))
 
 
 def readme_result(test):
@@ -945,6 +1008,8 @@ def rebuild_test_sections(readme, tests):
             "",
             "## Таблица тестов и corner cases",
             "",
+            "В таблице ниже значения в шагах воспроизведения приведены как в тестах этого прототипа. Используются домены `pastukhov.lab` / `domain3.lab`, Kerberos realms `PASTUKHOV.LAB` / `DOMAIN3.LAB`, NetBIOS-имена `PASTUKHOV` / `DOMAIN3`, контроллер домена `10-23-RP-DC-01` и сервисный host `kxspn22`. В реальной лаборатории эти значения нужно заменить на свои, сохранив тот же формат principal.",
+            "",
             "| № | Название | Описание | Формат / ветка | Ожидаемый результат | Откуда взяли | Раздел |",
             "|---|---|---|---|---|---|---|",
         ]
@@ -985,8 +1050,12 @@ def main():
     readme = rebuild_kerberos_name_type_section(readme)
     readme = rebuild_object_table(readme, snapshot)
     readme = rebuild_test_sections(readme, tests_data["tests"])
-    dump_json(SNAPSHOT_PATH, snapshot)
-    dump_json(TESTS_PATH, tests_data)
+    skipped_json_writes = []
+    for path, data in [(SNAPSHOT_PATH, snapshot), (TESTS_PATH, tests_data)]:
+        try:
+            dump_json(path, data)
+        except PermissionError:
+            skipped_json_writes.append(path.name)
     README_PATH.write_text(readme, encoding="utf-8")
     print(json.dumps({
         "initial_tests": initial_tests,
@@ -997,6 +1066,7 @@ def main():
         "kdc_tests_generated": len(kdc_tests),
         "removed_old_kdc": removed_old_kdc,
         "added_tests": len(added_tests),
+        "skipped_json_writes": skipped_json_writes,
     }, ensure_ascii=False, indent=2))
 
 
