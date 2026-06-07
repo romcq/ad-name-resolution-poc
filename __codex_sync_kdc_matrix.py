@@ -463,12 +463,16 @@ def name_type_bullets_for_readme(rows):
 
 
 def kdc_format_summary(row, selected, rows, semantic):
-    outcome = "positive lookup" if semantic == "true" else "negative lookup"
+    outcome = (
+        f"найден объект {local_object_id(selected)}"
+        if semantic == "true"
+        else "объект не найден"
+    )
+    action = "распознано как" if semantic == "true" else "проверялось как"
     return (
-        f"Формат результата: {matched_format(row, selected)}<br>"
-        f"KDC-прогон:<br>"
-        f"- исход: {outcome}<br>"
-        f"- NameType с таким же исходом:{name_type_bullets_for_readme(rows)}"
+        f"Проверка: значение {action} {matched_format(row, selected)}.<br>"
+        f"Итог KDC: {outcome}.<br>"
+        f"NameType с тем же итогом:{name_type_bullets_for_readme(rows)}"
     )
 
 
